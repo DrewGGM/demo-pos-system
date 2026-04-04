@@ -1,0 +1,672 @@
+export interface BaseModel {
+  id?: number;
+  created_at?: string;
+  updated_at?: string;
+  deleted_at?: string | null;
+}
+
+export interface Employee extends BaseModel {
+  name: string;
+  username: string;
+  password?: string;
+  pin?: string;
+  role: 'admin' | 'manager' | 'cashier' | 'waiter' | 'kitchen';
+  email: string;
+  phone?: string;
+  address?: string;
+  is_active: boolean;
+  active?: boolean; // Alias for is_active
+  last_login_at?: string | null;
+}
+
+export interface Category extends BaseModel {
+  name: string;
+  description?: string;
+  image?: string;
+  color?: string;
+  display_order: number;
+  is_active: boolean;
+}
+
+export interface Product extends BaseModel {
+  name: string;
+  description?: string;
+  price: number;
+  cost?: number;
+  category_id?: number;
+  category?: Category;
+  barcode?: string;
+  image?: string;
+  image_url?: string; // Alias for image
+  stock: number;
+  is_active: boolean;
+  active?: boolean; // Alias for is_active
+  has_modifiers?: boolean; // Made optional
+  has_variable_price?: boolean; // Whether this product requires price input at time of sale
+  modifiers?: Modifier[];
+  min_stock?: number;
+  track_inventory?: boolean; // Whether to track inventory for this product (default: true)
+  tax_type_id?: number; // DIAN Tax Type (1=IVA 19%, 5=IVA 0%, 6=IVA 5%)
+  unit_measure_id?: number; // DIAN Unit Measure (70=Unidad, 796=Porción, 797=Ración)
+  is_combo?: boolean; // Flag indicating this is a combo (for POS handling)
+}
+
+export interface ModifierGroup extends BaseModel {
+  name: string;
+  required: boolean;
+  multiple: boolean;
+  min_select: number;
+  max_select: number;
+  modifiers?: Modifier[];
+}
+
+export interface Modifier extends BaseModel {
+  name: string;
+  type: 'addition' | 'removal' | 'substitution';
+  price_change: number;
+  group_id: number;
+  group?: ModifierGroup;
+}
+
+export interface TableArea extends BaseModel {
+  name: string;
+  description?: string;
+  color?: string;
+  is_active: boolean;
+}
+
+export interface Table extends BaseModel {
+  number: string;
+  name?: string;
+  capacity: number;
+  zone?: string;
+  area_id?: number;
+  area?: TableArea;
+  status: 'available' | 'occupied' | 'reserved' | 'cleaning' | 'blocked';
+  is_active: boolean;
+  position_x?: number;
+  position_y?: number;
+  shape?: 'square' | 'round' | 'rectangle';
+  current_order?: Order;
+}
+
+export interface Customer extends BaseModel {
+  name: string;
+  identification_type: string;
+  identification_number: string;
+  document_type?: string; // Alias for identification_type
+  document_number?: string; // Alias for identification_number
+  dv?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  is_active: boolean;
+  notes?: string;
+  total_spent?: number;
+  total_purchases?: number;
+  loyalty_points?: number;
+  // DIAN Electronic Invoicing fields (optional - for corporate customers)
+  municipality_id?: number;
+  type_document_identification_id?: number; // DIAN type (inferred from identification_type if not provided)
+  type_organization_id?: number; // 1=Jurídica, 2=Natural
+  type_liability_id?: number; // DIAN fiscal responsibilities
+  type_regime_id?: number; // 1=Responsable IVA, 2=No responsable
+  merchant_registration?: string; // Matrícula mercantil (corporates only)
+}
+
+export interface OrderType extends BaseModel {
+  code: string;
+  name: string;
+  requires_sequential_number: boolean;
+  sequence_prefix?: string;
+  display_color: string;
+  icon: string;
+  is_active: boolean;
+  display_order: number;
+  skip_payment_dialog: boolean; // If true, skip payment dialog and auto-process with default payment method
+  default_payment_method_id?: number; // Default payment method when skip_payment_dialog is true
+  auto_print_receipt?: boolean; // If true, auto-print receipt when processing payment
+  hide_amount_in_reports?: boolean; // If true, hide sales amount in reports (only show products)
+}
+
+export interface Order extends BaseModel {
+  order_number: string;
+  type: 'dine_in' | 'takeout' | 'delivery'; // Deprecated: use order_type_id
+  order_type_id?: number;
+  order_type?: OrderType;
+  sequence_number?: number;
+  status: 'pending' | 'preparing' | 'ready' | 'delivered' | 'paid' | 'cancelled';
+  takeout_number?: number; // Sequential number for takeout orders (1,2,3...) - Deprecated: use sequence_number
+  table_id?: number;
+  table?: Table;
+  customer_id?: number;
+  customer?: Customer;
+  employee_id?: number;
+  employee?: Employee;
+  items: OrderItem[];
+  subtotal: number;
+  tax: number;
+  discount: number;
+  service_charge?: number; // Cargo por servicio
+  total: number;
+  notes?: string;
+  source: 'pos' | 'web' | 'mobile' | 'waiter_app' | 'split';
+  is_synced: boolean;
+  sale_id?: number;
+  // Kitchen acknowledgment tracking
+  kitchen_acknowledged?: boolean;
+  kitchen_acknowledged_at?: string;
+  // Delivery information (optional, for delivery orders)
+  delivery_customer_name?: string;
+  delivery_address?: string;
+  delivery_phone?: string;
+}
+
+export interface OrderItem extends BaseModel {
+  order_id?: number;
+  product_id: number;
+  product?: Product;
+  quantity: number;
+  unit_price?: number; // Made optional
+  price?: number; // Alias for unit_price
+  subtotal?: number; // Made optional
+  notes?: string;
+  status?: 'pending' | 'preparing' | 'ready' | 'delivered' | 'served' | 'cancelled';
+  modifiers?: OrderItemModifier[];
+  sent_to_kitchen?: boolean;
+  sent_to_kitchen_at?: string;
+  // Combo tracking fields
+  is_combo?: boolean; // True if this item represents a combo (backend will expand it)
+  combo_id?: number; // If this item came from a combo expansion
+  combo_name?: string; // Name of the source combo for kitchen display
+  combo_color?: string; // Color indicator for grouping in kitchen
+  is_from_combo?: boolean; // True if this item is an expanded combo product
+}
+
+export interface OrderItemModifier extends BaseModel {
+  order_item_id: number;
+  modifier_id: number;
+  modifier?: Modifier;
+  price_change: number;
+}
+
+export interface Sale extends BaseModel {
+  sale_number: string;
+  order_id: number;
+  order?: Order;
+  customer_id?: number;
+  customer?: Customer;
+  employee_id: number;
+  employee?: Employee;
+  cash_register_id: number;
+  cash_register?: CashRegister;
+  subtotal: number;
+  tax: number;
+  discount: number;
+  service_charge?: number; // Cargo por servicio
+  total: number;
+  amount_paid?: number; // Total amount received from customer
+  change?: number; // Change returned to customer
+  status: 'completed' | 'refunded' | 'partial_refund';
+  invoice_type: 'none' | 'simple' | 'electronic';
+  needs_electronic_invoice?: boolean; // Flag for electronic invoice per sale
+  payment_details?: Payment[];
+  electronic_invoice?: ElectronicInvoice;
+  notes?: string;
+  is_synced: boolean;
+}
+
+export interface Payment extends BaseModel {
+  sale_id: number;
+  payment_method_id: number;
+  payment_method?: PaymentMethod;
+  amount: number;
+  reference?: string;
+  allocations?: PaymentAllocation[]; // Product allocations for split payments
+}
+
+// Payment allocation model (for split payments)
+export interface PaymentAllocation extends BaseModel {
+  payment_id: number;
+  payment?: Payment;
+  order_item_id: number;
+  order_item?: OrderItem;
+  amount: number;
+}
+
+export interface PaymentMethod extends BaseModel {
+  name: string;
+  code?: string; // Made optional
+  type: 'cash' | 'card' | 'digital' | 'other' | 'check';
+  requires_reference?: boolean; // Made optional
+  requires_ref?: boolean; // Alias for requires_reference
+  requires_voucher?: boolean; // Allows/requires payment voucher image
+  dian_payment_method_id?: number; // DIAN parametric payment method ID for electronic invoicing
+  affects_cash_register?: boolean; // Whether this payment type counts in cash register reconciliation
+  show_in_cash_summary?: boolean; // Whether this payment method appears in cash register sales summary
+  show_in_reports?: boolean; // Whether this payment method appears in Google Sheets reports
+  is_system_default?: boolean; // System default payment methods cannot be deleted
+  is_active: boolean;
+  display_order: number;
+  icon?: string;
+  // Bold integration
+  use_bold_terminal?: boolean; // Whether to process this payment through Bold datáfono
+  bold_payment_method?: string; // Bold payment method type: "POS", "NEQUI", "DAVIPLATA", "PAY_BY_LINK"
+}
+
+export interface ElectronicInvoice extends BaseModel {
+  sale_id: number;
+  prefix: string;
+  invoice_number: string;
+  uuid?: string;
+  cufe: string;
+  qr_code: string;
+  zip_key: string;
+  xml_document?: string;
+  pdf_document?: string;
+  request_data?: string;
+  status: 'pending' | 'sent' | 'validating' | 'accepted' | 'rejected' | 'error';
+  is_valid?: boolean;
+  validation_message?: string;
+  validation_checked_at?: string;
+  dian_response?: string;
+  sent_at?: string;
+  accepted_at?: string;
+  retry_count?: number;
+  last_error?: string;
+}
+
+export interface CashRegister extends BaseModel {
+  employee_id: number;
+  employee?: Employee;
+  opening_amount: number;
+  closing_amount?: number;
+  expected_amount?: number;
+  difference?: number;
+  status: 'open' | 'closed';
+  opened_at: string;
+  closed_at?: string;
+  notes?: string;
+  movements?: CashMovement[];
+}
+
+export interface CashMovement extends BaseModel {
+  cash_register_id: number;
+  type: 'sale' | 'deposit' | 'withdrawal' | 'refund' | 'in' | 'out';
+  amount: number;
+  description?: string;
+  reason?: string; // Added missing property
+  reference?: string;
+  employee_id: number;
+  employee?: Employee;
+  created_by?: string; // Added missing property
+}
+
+export interface CashRegisterReport extends BaseModel {
+  cash_register_id: number;
+  date: string;
+  opening_balance: number;
+  closing_balance: number;
+  expected_balance: number;
+  difference: number;
+  total_sales: number;
+  total_cash: number;
+  total_card: number;
+  total_digital: number;
+  total_other: number;
+  number_of_sales: number;
+  number_of_refunds?: number;
+  total_refunds?: number;
+  total_discounts?: number;
+  total_tax?: number;
+  cash_deposits?: number;
+  cash_withdrawals?: number;
+  notes?: string;
+  generated_by: number;
+  employee?: Employee;
+}
+
+export interface Session extends BaseModel {
+  employee_id: number;
+  employee?: Employee;
+  token: string;
+  device_info?: string;
+  ip_address?: string;
+  expires_at: string;
+}
+
+export interface AuditLog extends BaseModel {
+  employee_id: number;
+  employee?: Employee;
+  action: string;
+  entity: string;
+  entity_id: number;
+  old_value?: string;
+  new_value?: string;
+  ip_address?: string;
+  user_agent?: string;
+}
+
+export interface SystemConfig extends BaseModel {
+  key: string;
+  value: string;
+  type: string;
+  category: string;
+  is_locked: boolean;
+  description?: string;
+}
+
+export interface RestaurantConfig extends BaseModel {
+  name: string;
+  logo?: string;
+  address: string;
+  phone: string;
+  email: string;
+  website?: string;
+  restaurant_mode: 'traditional' | 'fast_food' | 'bar' | 'cafe';
+  enable_table_management: boolean;
+  enable_kitchen_display: boolean;
+  enable_waiter_app: boolean;
+  enable_kitchen_ack?: boolean; // Enable kitchen acknowledgment tracking for waiter app orders
+  invoice_header?: string;
+  invoice_footer?: string;
+  show_logo_on_invoice: boolean;
+  default_tax_rate: number;
+  tax_included_in_price: boolean;
+  // Service charge settings
+  service_charge_enabled?: boolean;
+  service_charge_percent?: number;
+  currency: string;
+  currency_symbol: string;
+  decimal_places: number;
+  opening_time: string;
+  closing_time: string;
+  working_days: string;
+}
+
+export interface DIANConfig extends BaseModel {
+  environment: 'test' | 'production';
+  is_enabled: boolean;
+  api_url: string;
+  identification_number: string;
+  dv?: string;
+  business_name?: string;
+  merchant_registration?: string;
+  software_id?: string;
+  software_pin?: string;
+  certificate?: string;
+  certificate_password?: string;
+
+  // Invoice Resolution
+  resolution_number?: string;
+  resolution_date?: string;
+  resolution_prefix?: string;
+  resolution_from?: number;
+  resolution_to?: number;
+  resolution_date_from?: string;
+  resolution_date_to?: string;
+  technical_key?: string;
+
+  // Credit Note (NC) Resolution
+  credit_note_resolution_number?: string;
+  credit_note_resolution_prefix?: string;
+  credit_note_resolution_from?: number;
+  credit_note_resolution_to?: number;
+  credit_note_resolution_date_from?: string;
+  credit_note_resolution_date_to?: string;
+
+  // Debit Note (ND) Resolution
+  debit_note_resolution_number?: string;
+  debit_note_resolution_prefix?: string;
+  debit_note_resolution_from?: number;
+  debit_note_resolution_to?: number;
+  debit_note_resolution_date_from?: string;
+  debit_note_resolution_date_to?: string;
+
+  // Parametric IDs
+  type_document_id?: number;
+  type_organization_id?: number;
+  type_regime_id?: number;
+  type_liability_id?: number;
+  municipality_id?: number;
+
+  // API Settings
+  api_token?: string;
+  test_set_id?: string;
+  use_test_set_id?: boolean;
+
+  // Counters
+  last_invoice_number?: number;
+  last_credit_note_number?: number;
+  last_debit_note_number?: number;
+
+  // Email Settings
+  send_email?: boolean;
+  email_host?: string;
+  email_port?: number;
+  email_username?: string;
+  email_password?: string;
+  email_encryption?: string;
+
+  // Configuration Steps
+  step1_completed?: boolean;
+  step2_completed?: boolean;
+  step3_completed?: boolean;
+  step4_completed?: boolean;
+  step5_completed?: boolean;
+  step6_completed?: boolean;
+  step7_completed?: boolean;
+}
+
+export interface PrinterConfig extends BaseModel {
+  name: string;
+  type: 'usb' | 'network' | 'serial';
+  connection_type: 'usb' | 'ethernet' | 'wifi' | 'bluetooth';
+  address: string;
+  port?: number;
+  model?: string;
+  paper_width: number;
+  is_default: boolean;
+  is_active: boolean;
+  print_logo: boolean;
+  auto_cut: boolean;
+  cash_drawer: boolean;
+}
+
+export interface InventoryMovement extends BaseModel {
+  product_id: number;
+  product?: Product;
+  type: 'purchase' | 'sale' | 'adjustment' | 'transfer' | 'return';
+  quantity: number;
+  previous_qty: number;
+  new_qty: number;
+  reference?: string;
+  notes?: string;
+  employee_id?: number;
+  employee?: Employee;
+}
+
+export interface Ingredient extends BaseModel {
+  name: string;
+  unit: string; // "unidades", "kg", "gramos", "litros", "ml"
+  stock: number; // Float to support fractional quantities
+  min_stock: number;
+  is_active: boolean;
+}
+
+export interface ProductIngredient extends BaseModel {
+  product_id: number;
+  product?: Product;
+  ingredient_id: number;
+  ingredient?: Ingredient;
+  quantity: number; // Amount consumed per product sale
+}
+
+export interface IngredientMovement extends BaseModel {
+  ingredient_id: number;
+  ingredient?: Ingredient;
+  type: 'purchase' | 'sale' | 'adjustment' | 'loss';
+  quantity: number; // Positive for additions, negative for deductions
+  previous_qty: number;
+  new_qty: number;
+  reference?: string;
+  employee_id?: number;
+  employee?: Employee;
+}
+
+export interface CreateOrderData {
+  type: 'dine_in' | 'takeout' | 'delivery';
+  order_type_id?: number;
+  table_id?: number;
+  customer_id?: number;
+  employee_id?: number;
+  items: Partial<OrderItem>[];
+  notes?: string;
+  source?: string;
+  delivery_customer_name?: string;
+  delivery_address?: string;
+  delivery_phone?: string;
+  service_charge?: number; // Cargo por servicio
+}
+
+export interface ProcessSaleData {
+  order_id: number;
+  customer_id?: number;
+  payment_methods: PaymentData[];
+  discount?: number;
+  notes?: string;
+  employee_id: number;
+  cash_register_id: number;
+  needs_electronic_invoice?: boolean;
+  send_email_to_customer?: boolean; // Send electronic invoice PDF to customer email
+  print_receipt?: boolean; // Whether to print receipt (checkbox in payment dialog has priority)
+}
+
+export interface PaymentData {
+  payment_method_id: number;
+  amount: number;
+  reference?: string;
+}
+
+// Combo model - represents a bundle of products sold as one
+export interface Combo extends BaseModel {
+  name: string;
+  description?: string;
+  price: number;
+  image?: string;
+  category_id?: number;
+  category?: Category;
+  is_active: boolean;
+  items?: ComboItem[];
+  tax_type_id?: number;
+  display_order?: number;
+}
+
+// ComboItem model - represents a product within a combo
+export interface ComboItem extends BaseModel {
+  combo_id: number;
+  product_id: number;
+  product?: Product;
+  quantity: number;
+  position: number;
+}
+
+// Expanded combo item for order creation (used when a combo is expanded into individual items)
+export interface ExpandedComboItem {
+  product_id: number;
+  quantity: number;
+  unit_price: number;
+  subtotal: number;
+  combo_id?: number;
+  combo_name?: string;
+  combo_color?: string;
+  is_from_combo: boolean;
+  notes?: string;
+}
+export interface BoldConfig extends BaseModel {
+  enabled: boolean;
+  environment: 'test' | 'production';
+  api_key_production: string;
+  api_key_test: string;
+  base_url: string;
+  user_email: string;
+  enable_pos: boolean;
+  enable_nequi: boolean;
+  enable_daviplata: boolean;
+  enable_pay_by_link: boolean;
+  default_terminal_model: string;
+  default_terminal_serial: string;
+  webhook_url?: string;
+  webhook_url_sandbox?: string;
+  webhook_secret?: string;
+  last_sync_at?: string;
+  last_sync_status?: string;
+  last_sync_error?: string;
+  total_payments: number;
+}
+
+export interface BoldTerminal extends BaseModel {
+  terminal_model: string;
+  terminal_serial: string;
+  name: string;
+  status: string; // "BINDED", "UNBINDED"
+  is_active: boolean;
+  is_default: boolean;
+  last_used_at?: string;
+  usage_count: number;
+}
+
+export interface BoldPaymentMethod {
+  name: string; // "POS", "NEQUI", "DAVIPLATA", "PAY_BY_LINK"
+  enabled: boolean;
+}
+
+export interface BoldTerminalResponse {
+  terminal_model: string;
+  terminal_serial: string;
+  status: string;
+  name: string;
+}
+
+export interface BoldTax {
+  type: string; // "VAT", "CONSUMPTION", "IVA_19", "IVA_5", "IAC_8"
+  base?: number;
+  value?: number;
+}
+
+export interface BoldAmount {
+  currency: string; // "COP"
+  taxes: BoldTax[];
+  tip_amount: number;
+  total_amount: number;
+}
+
+export interface BoldDocument {
+  document_type: string; // "CEDULA", "NIT", etc.
+  document_number: string;
+}
+
+export interface BoldPayer {
+  email?: string;
+  phone_number?: string;
+  document?: BoldDocument;
+}
+
+export interface BoldPaymentRequest {
+  amount: BoldAmount;
+  payment_method: string;
+  terminal_model: string;
+  terminal_serial: string;
+  reference: string;
+  user_email: string;
+  description?: string;
+  payer?: BoldPayer;
+}
+
+export interface BoldPaymentResponse {
+  payload: {
+    integration_id: string;
+  };
+  errors: any[];
+}
