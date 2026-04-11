@@ -248,6 +248,68 @@ class WailsSalesService {
     };
   }
 
+  async getProfitReport(startDate?: string, endDate?: string): Promise<any> {
+    const sales = getAll<any>('sales');
+    const products = getAll<any>('products');
+    const categories = getAll<any>('categories');
+
+    const filtered = sales.filter((s: any) => {
+      if (startDate && s.created_at < startDate) return false;
+      if (endDate && s.created_at > endDate) return false;
+      return s.status !== 'refunded';
+    });
+
+    // Aggregate by product
+    const productStats: Record<number, any> = {};
+    for (const sale of filtered) {
+      const items = sale.order?.items || sale.items || [];
+      for (const item of items) {
+        const pid = item.product_id;
+        if (!pid) continue;
+        if (!productStats[pid]) {
+          const product = products.find((p: any) => p.id === pid);
+          const category = categories.find((c: any) => c.id === product?.category_id);
+          productStats[pid] = {
+            product_id: pid,
+            product_name: product?.name || 'Producto',
+            category_name: category?.name || '',
+            unit_price: product?.price || 0,
+            unit_cost: product?.cost || 0,
+            unit_margin: (product?.price || 0) - (product?.cost || 0),
+            margin_pct: 0,
+            qty_sold: 0,
+            total_revenue: 0,
+            total_cost: 0,
+            total_profit: 0,
+          };
+        }
+        const stat = productStats[pid];
+        stat.qty_sold += item.quantity || 0;
+        stat.total_revenue += item.subtotal || 0;
+        stat.total_cost += stat.unit_cost * (item.quantity || 0);
+        stat.total_profit = stat.total_revenue - stat.total_cost;
+        stat.margin_pct = stat.total_revenue > 0 ? (stat.total_profit / stat.total_revenue) * 100 : 0;
+      }
+    }
+
+    const productList = Object.values(productStats);
+    const totalRevenue = productList.reduce((s: number, p: any) => s + p.total_revenue, 0);
+    const totalCost = productList.reduce((s: number, p: any) => s + p.total_cost, 0);
+    const totalProfit = totalRevenue - totalCost;
+    const totalQty = productList.reduce((s: number, p: any) => s + p.qty_sold, 0);
+
+    return {
+      products: productList,
+      total_revenue: totalRevenue,
+      total_cost: totalCost,
+      total_profit: totalProfit,
+      total_qty: totalQty,
+      overall_margin: totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0,
+      start_date: startDate || '',
+      end_date: endDate || '',
+    };
+  }
+
   // Payment Methods
   async getPaymentMethods(): Promise<PaymentMethod[]> {
     return getAll<any>('payment_methods').map((m: any) => this._mapPaymentMethod(m));
