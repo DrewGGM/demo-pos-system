@@ -84,6 +84,7 @@ const Orders: React.FC = () => {
       setOrders(data);
     } catch (error) {
       // Silent fail for auto-refresh
+      console.error('Auto-refresh failed:', error);
     }
   }, [selectedTab]);
 
@@ -224,6 +225,9 @@ const Orders: React.FC = () => {
     }
     handleMenuClose();
   };
+
+  // Using centralized getStatusChipColor from utils/statusUtils.ts
+
   const columns: GridColDef[] = [
     {
       field: 'order_number',
@@ -510,6 +514,7 @@ const Orders: React.FC = () => {
         </MenuItem>
       </Menu>
 
+      {/* Order Details Dialog */}
       <Dialog
         open={detailsDialogOpen}
         onClose={handleCloseDetails}
@@ -531,6 +536,7 @@ const Orders: React.FC = () => {
         <DialogContent dividers>
           {selectedOrder && (
             <Box>
+              {/* Order Info */}
               <Box sx={{ mb: 3 }}>
                 <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                   Información General
@@ -579,6 +585,12 @@ const Orders: React.FC = () => {
                     <Typography variant="body2" color="text.secondary">Origen</Typography>
                     <Typography variant="body1">{selectedOrder.source || 'POS'}</Typography>
                   </Box>
+                  {(selectedOrder as any).created_by_name && (
+                    <Box>
+                      <Typography variant="body2" color="text.secondary">Creado por</Typography>
+                      <Typography variant="body1" color="primary">{(selectedOrder as any).created_by_name}</Typography>
+                    </Box>
+                  )}
                 </Box>
               </Box>
 
@@ -616,6 +628,7 @@ const Orders: React.FC = () => {
 
               <Divider sx={{ my: 2 }} />
 
+              {/* Order Items */}
               <Box sx={{ mb: 3 }}>
                 <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                   Productos
@@ -639,21 +652,25 @@ const Orders: React.FC = () => {
                             </Typography>
                             {item.modifiers && item.modifiers.length > 0 && (
                               <Box sx={{ mt: 0.5 }}>
-                                {item.modifiers.map((mod, modIndex) => (
-                                  <Typography
-                                    key={modIndex}
-                                    variant="caption"
-                                    color="text.secondary"
-                                    sx={{ display: 'block', fontStyle: 'italic' }}
-                                  >
-                                    + {mod.modifier?.name}
-                                    {mod.price_change !== 0 && (
-                                      <span style={{ marginLeft: '4px' }}>
-                                        ({mod.price_change > 0 ? '+' : ''}${mod.price_change.toLocaleString('es-CO')})
-                                      </span>
-                                    )}
-                                  </Typography>
-                                ))}
+                                {item.modifiers.map((mod, modIndex) => {
+                                  const modQty = mod.quantity && mod.quantity > 0 ? mod.quantity : 1;
+                                  const totalChange = mod.price_change * modQty;
+                                  return (
+                                    <Typography
+                                      key={modIndex}
+                                      variant="caption"
+                                      color="text.secondary"
+                                      sx={{ display: 'block', fontStyle: 'italic' }}
+                                    >
+                                      + {mod.modifier?.name}{modQty > 1 ? ` x${modQty}` : ''}
+                                      {totalChange !== 0 && (
+                                        <span style={{ marginLeft: '4px' }}>
+                                          ({totalChange > 0 ? '+' : ''}${totalChange.toLocaleString('es-CO')})
+                                        </span>
+                                      )}
+                                    </Typography>
+                                  );
+                                })}
                               </Box>
                             )}
                             {item.notes && (
@@ -680,6 +697,7 @@ const Orders: React.FC = () => {
 
               <Divider sx={{ my: 2 }} />
 
+              {/* Order Totals */}
               <Box>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                   <Typography variant="body2">Subtotal:</Typography>
@@ -710,6 +728,7 @@ const Orders: React.FC = () => {
                 </Box>
               </Box>
 
+              {/* Notes */}
               {selectedOrder.notes && (
                 <>
                   <Divider sx={{ my: 2 }} />

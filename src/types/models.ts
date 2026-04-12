@@ -189,6 +189,7 @@ export interface OrderItemModifier extends BaseModel {
   modifier_id: number;
   modifier?: Modifier;
   price_change: number;
+  quantity?: number;
 }
 
 export interface Sale extends BaseModel {

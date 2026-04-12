@@ -59,7 +59,9 @@ const OrderList: React.FC<OrderListProps> = ({
               px: 0,
             }}
           >
+            {/* Main item row */}
             <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', mb: 1 }}>
+              {/* Quantity controls */}
               {editable && (
                 <ButtonGroup size="small" sx={{ mr: 1 }}>
                   <Button
@@ -77,22 +79,26 @@ const OrderList: React.FC<OrderListProps> = ({
                 </ButtonGroup>
               )}
 
+              {/* Product info */}
               <Box sx={{ flex: 1 }}>
                 <Typography variant="body1" sx={{ fontWeight: 500 }}>
                   {item.product?.name}
                 </Typography>
-
+                
+                {/* Unit price */}
                 <Typography variant="body2" color="text.secondary">
                   ${(item.unit_price || 0).toLocaleString('es-CO')} c/u
                 </Typography>
               </Box>
 
+              {/* Subtotal */}
               <Box sx={{ textAlign: 'right', mr: 1 }}>
                 <Typography variant="subtitle1">
                   ${(item.subtotal || 0).toLocaleString('es-CO')}
                 </Typography>
               </Box>
 
+              {/* Action buttons */}
               {editable && (
                 <Box>
                   {onEditNotes && (
@@ -132,20 +138,30 @@ const OrderList: React.FC<OrderListProps> = ({
               )}
             </Box>
 
+            {/* Modifiers */}
             {item.modifiers && item.modifiers.length > 0 && (
               <Box sx={{ pl: 2, mb: 0.5 }}>
-                {item.modifiers.map((mod, idx) => (
-                  <Chip
-                    key={idx}
-                    label={`${mod.modifier?.name} ${mod.price_change > 0 ? `+$${mod.price_change.toLocaleString('es-CO')}` : ''}`}
-                    size="small"
-                    variant="outlined"
-                    sx={{ mr: 0.5, mb: 0.5 }}
-                  />
-                ))}
+                {item.modifiers.map((mod, idx) => {
+                  const modQty = mod.quantity && mod.quantity > 0 ? mod.quantity : 1;
+                  const totalChange = mod.price_change * modQty;
+                  const qtyLabel = modQty > 1 ? ` x${modQty}` : '';
+                  const priceLabel = totalChange > 0
+                    ? ` +$${totalChange.toLocaleString('es-CO')}`
+                    : (totalChange < 0 ? ` -$${Math.abs(totalChange).toLocaleString('es-CO')}` : '');
+                  return (
+                    <Chip
+                      key={idx}
+                      label={`${mod.modifier?.name}${qtyLabel}${priceLabel}`}
+                      size="small"
+                      variant="outlined"
+                      sx={{ mr: 0.5, mb: 0.5 }}
+                    />
+                  );
+                })}
               </Box>
             )}
 
+            {/* Notes */}
             {item.notes && (
               <Box sx={{ pl: 2, display: 'flex', alignItems: 'center', gap: 0.5 }}>
                 <NoteIcon fontSize="small" color="action" />
@@ -155,6 +171,7 @@ const OrderList: React.FC<OrderListProps> = ({
               </Box>
             )}
 
+            {/* Kitchen status */}
             {item.status && item.status !== 'pending' && (
               <Box sx={{ pl: 2, mt: 0.5 }}>
                 <Chip
@@ -173,6 +190,7 @@ const OrderList: React.FC<OrderListProps> = ({
   );
 };
 
+// Helper functions
 const getStatusLabel = (status: string): string => {
   switch (status) {
     case 'pending':

@@ -16,16 +16,21 @@ const CashRegisterGuard: React.FC<CashRegisterGuardProps> = ({ children }) => {
   const { cashRegisterId } = useAuth();
   const location = useLocation();
 
+  // Rutas que NO requieren caja abierta
   const allowedWithoutCashRegister = [
     '/cash-register',
     '/settings',
     '/employees',
+    '/sales',
+    '/profile',
   ];
 
+  // Verificar si la ruta actual está en la lista de permitidas
   const isAllowedRoute = allowedWithoutCashRegister.some(route =>
     location.pathname.startsWith(route)
   );
 
+  // Si no hay caja abierta y no es una ruta permitida, redirigir
   if (!cashRegisterId && !isAllowedRoute) {
     return <Navigate to="/cash-register" replace />;
   }

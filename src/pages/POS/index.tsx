@@ -503,7 +503,7 @@ const POS: React.FC = () => {
         const currentItemId = item.id ?? Date.now();
         if (currentItemId === itemId) {
           const basePrice = item.unit_price || 0;
-          const modifiersPrice = item.modifiers?.reduce((sum, mod) => sum + mod.price_change, 0) || 0;
+          const modifiersPrice = item.modifiers?.reduce((sum, mod) => sum + mod.price_change * (mod.quantity || 1), 0) || 0;
           const newSubtotal = (basePrice + modifiersPrice) * newQuantity;
 
           return { ...item, quantity: newQuantity, subtotal: newSubtotal };
@@ -773,8 +773,9 @@ const POS: React.FC = () => {
 
       if (currentOrder && currentOrder.id && !splitItems) {
         const itemsChanged = JSON.stringify(currentOrder.items) !== JSON.stringify(orderItems);
+        const serviceChargeChanged = (currentOrder.service_charge || 0) !== orderTotals.serviceCharge;
 
-        if (itemsChanged) {
+        if (itemsChanged || serviceChargeChanged) {
           const orderData: CreateOrderData = {
             type: selectedOrderType?.code as 'dine_in' | 'takeout' | 'delivery' || 'takeout',
             order_type_id: selectedOrderType?.id as unknown as number,
@@ -1421,28 +1422,31 @@ const POS: React.FC = () => {
             setSelectedItemForModifierEdit(null);
           }}
           product={selectedProductForModifier}
-          initialModifiers={selectedItemForModifierEdit?.modifiers?.map(m => m.modifier!).filter(Boolean) || []}
-          onConfirm={(modifiers) => {
-            // IMPORTANT: unit_price should always be base product price (no modifiers)
-            // Modifiers are added to subtotal calculation only
-            // This matches backend calculation in order_service.go:659-669
+          initialSelections={selectedItemForModifierEdit?.modifiers?.filter(m => m.modifier).map(m => ({
+            modifier: m.modifier!,
+            quantity: m.quantity || 1,
+          })) || []}
+          onConfirm={(selections) => {
             const basePrice = selectedProductForModifier.price;
-            const modifiersPriceChange = modifiers.reduce((sum, mod) => sum + mod.price_change, 0);
+            const modifiersPriceChange = selections.reduce(
+              (sum, sel) => sum + sel.modifier.price_change * sel.quantity,
+              0,
+            );
 
             if (selectedItemForModifierEdit) {
-              // Editing existing item - update it
               const quantity = selectedItemForModifierEdit.quantity;
               const subtotal = (basePrice * quantity) + (modifiersPriceChange * quantity);
 
               const updatedItem: OrderItem = {
                 ...selectedItemForModifierEdit,
-                unit_price: basePrice, // Base product price only (no modifiers)
-                subtotal: subtotal, // Base + modifiers
-                modifiers: modifiers.map(mod => ({
+                unit_price: basePrice,
+                subtotal: subtotal,
+                modifiers: selections.map(sel => ({
                   order_item_id: selectedItemForModifierEdit.id || 0,
-                  modifier_id: mod.id!,
-                  modifier: mod,
-                  price_change: mod.price_change,
+                  modifier_id: sel.modifier.id!,
+                  modifier: sel.modifier,
+                  price_change: sel.modifier.price_change,
+                  quantity: sel.quantity,
                 })),
               };
 
@@ -1450,7 +1454,6 @@ const POS: React.FC = () => {
                 item.id === selectedItemForModifierEdit.id ? updatedItem : item
               ));
             } else {
-              // Adding new product with modifiers
               const subtotal = basePrice + modifiersPriceChange;
 
               const newItem: OrderItem = {
@@ -1458,13 +1461,14 @@ const POS: React.FC = () => {
                 product_id: selectedProductForModifier.id!,
                 product: selectedProductForModifier,
                 quantity: 1,
-                unit_price: basePrice, // Base product price only (no modifiers)
-                subtotal: subtotal, // Base + modifiers
-                modifiers: modifiers.map(mod => ({
-                  order_item_id: 0, // Will be set when order is created
-                  modifier_id: mod.id!,
-                  modifier: mod,
-                  price_change: mod.price_change,
+                unit_price: basePrice,
+                subtotal: subtotal,
+                modifiers: selections.map(sel => ({
+                  order_item_id: 0,
+                  modifier_id: sel.modifier.id!,
+                  modifier: sel.modifier,
+                  price_change: sel.modifier.price_change,
+                  quantity: sel.quantity,
                 })),
                 notes: '',
               };

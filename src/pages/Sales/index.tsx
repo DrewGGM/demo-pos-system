@@ -970,17 +970,25 @@ const Sales: React.FC = () => {
                             </Typography>
                             {item.modifiers && item.modifiers.length > 0 && (
                               <Box sx={{ mt: 0.5, ml: 1 }}>
-                                {item.modifiers.map((mod, modIndex) => (
-                                  <Typography
-                                    key={modIndex}
-                                    variant="caption"
-                                    color="text.secondary"
-                                    display="block"
-                                    sx={{ fontStyle: 'italic' }}
-                                  >
-                                    + {mod.modifier?.name}
-                                  </Typography>
-                                ))}
+                                {item.modifiers.map((mod, modIndex) => {
+                                  const modQty = mod.quantity && mod.quantity > 0 ? mod.quantity : 1;
+                                  const totalChange = mod.price_change * modQty;
+                                  const qtyLabel = modQty > 1 ? ` x${modQty}` : '';
+                                  const priceLabel = totalChange !== 0
+                                    ? ` (${totalChange > 0 ? '+' : '-'}$${Math.abs(totalChange).toLocaleString('es-CO')})`
+                                    : '';
+                                  return (
+                                    <Typography
+                                      key={modIndex}
+                                      variant="caption"
+                                      color="text.secondary"
+                                      display="block"
+                                      sx={{ fontStyle: 'italic' }}
+                                    >
+                                      + {mod.modifier?.name}{qtyLabel}{priceLabel}
+                                    </Typography>
+                                  );
+                                })}
                               </Box>
                             )}
                             {item.notes && (
