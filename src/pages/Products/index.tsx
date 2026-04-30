@@ -134,7 +134,7 @@ const Products: React.FC = () => {
     name: '',
     required: false,
     multiple: false,
-    allow_quantity: false,
+    allow_quantity: true,
     min_select: 0,
     max_select: 1,
   });
@@ -447,7 +447,7 @@ const Products: React.FC = () => {
         name: group.name,
         required: group.required,
         multiple: group.multiple,
-        allow_quantity: !!group.allow_quantity,
+        allow_quantity: group.allow_quantity !== false,
         min_select: group.min_select,
         max_select: group.max_select,
       });
@@ -457,7 +457,7 @@ const Products: React.FC = () => {
         name: '',
         required: false,
         multiple: false,
-        allow_quantity: false,
+        allow_quantity: true,
         min_select: 0,
         max_select: 1,
       });
