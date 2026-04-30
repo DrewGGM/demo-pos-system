@@ -134,6 +134,7 @@ const Products: React.FC = () => {
     name: '',
     required: false,
     multiple: false,
+    allow_quantity: false,
     min_select: 0,
     max_select: 1,
   });
@@ -446,6 +447,7 @@ const Products: React.FC = () => {
         name: group.name,
         required: group.required,
         multiple: group.multiple,
+        allow_quantity: !!group.allow_quantity,
         min_select: group.min_select,
         max_select: group.max_select,
       });
@@ -455,6 +457,7 @@ const Products: React.FC = () => {
         name: '',
         required: false,
         multiple: false,
+        allow_quantity: false,
         min_select: 0,
         max_select: 1,
       });
@@ -1451,6 +1454,17 @@ const Products: React.FC = () => {
               }
               label="Selección múltiple (permitir seleccionar varios)"
             />
+            {groupForm.multiple && (
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={groupForm.allow_quantity}
+                    onChange={(e) => setGroupForm({ ...groupForm, allow_quantity: e.target.checked })}
+                  />
+                }
+                label="Permitir cantidad (mostrar contador +/- en lugar de checkbox)"
+              />
+            )}
             {groupForm.multiple && (
               <Box sx={{ display: 'flex', gap: 2 }}>
                 <TextField

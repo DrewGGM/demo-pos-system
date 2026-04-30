@@ -10,8 +10,10 @@ import {
   FormControl,
   FormLabel,
   FormControlLabel,
+  FormGroup,
   Radio,
   RadioGroup,
+  Checkbox,
   Divider,
   Alert,
   Chip,
@@ -198,7 +200,7 @@ const ModifierDialog: React.FC<ModifierDialogProps> = ({
                         (Mín: {group.min_select}, Máx: {group.max_select})
                       </Typography>
                     )}
-                    {group.multiple && (
+                    {group.multiple && group.allow_quantity && (
                       <Typography variant="caption" color="primary" sx={{ ml: 'auto' }}>
                         Total: {getGroupTotal(groupId)}
                       </Typography>
@@ -206,7 +208,7 @@ const ModifierDialog: React.FC<ModifierDialogProps> = ({
                   </Box>
                 </FormLabel>
 
-                {group.multiple ? (
+                {group.multiple && group.allow_quantity ? (
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mt: 1 }}>
                     {modifiers.map(modifier => {
                       const qty = getQty(groupId, modifier.id!);
@@ -270,6 +272,52 @@ const ModifierDialog: React.FC<ModifierDialogProps> = ({
                       );
                     })}
                   </Box>
+                ) : group.multiple ? (
+                  <FormGroup>
+                    {modifiers.map(modifier => {
+                      const checked = getQty(groupId, modifier.id!) > 0;
+                      return (
+                        <FormControlLabel
+                          key={modifier.id}
+                          sx={{
+                            width: '100%',
+                            mr: 0,
+                            '& .MuiFormControlLabel-label': { flex: 1 },
+                          }}
+                          control={
+                            <Checkbox
+                              checked={checked}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  const groupTotal = getGroupTotal(groupId);
+                                  if (groupTotal >= group.max_select) {
+                                    setError(`Máximo ${group.max_select} opciones para ${group.name}`);
+                                    return;
+                                  }
+                                  handleIncrement(groupId, modifier.id!);
+                                } else {
+                                  handleDecrement(groupId, modifier.id!);
+                                }
+                              }}
+                            />
+                          }
+                          label={
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', pr: 1 }}>
+                              <Typography>{modifier.name}</Typography>
+                              {modifier.price_change !== 0 && (
+                                <Chip
+                                  label={`${modifier.price_change > 0 ? '+' : ''}$${Math.abs(modifier.price_change).toLocaleString('es-CO')}`}
+                                  color={modifier.price_change > 0 ? 'warning' : 'success'}
+                                  size="small"
+                                  sx={{ pointerEvents: 'none' }}
+                                />
+                              )}
+                            </Box>
+                          }
+                        />
+                      );
+                    })}
+                  </FormGroup>
                 ) : (
                   <RadioGroup
                     value={selectedRadio || ''}

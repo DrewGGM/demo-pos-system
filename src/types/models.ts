@@ -55,6 +55,7 @@ export interface ModifierGroup extends BaseModel {
   name: string;
   required: boolean;
   multiple: boolean;
+  allow_quantity?: boolean;
   min_select: number;
   max_select: number;
   modifiers?: Modifier[];
