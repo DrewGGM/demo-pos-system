@@ -55,6 +55,9 @@ import {
 import { useAuth, useWebSocket, useDIANMode, useNotifications } from '../hooks';
 import { Warning as WarningIcon, CheckCircle as CheckCircleIcon, Error as ErrorIcon, Info as InfoIcon } from '@mui/icons-material';
 import { wailsConfigService } from '../services/wailsConfigService';
+import { wailsLicenseService } from '../services/wailsLicenseService';
+import DemoPlanSwitcher from '../components/DemoPlanSwitcher';
+import { DEMO_PLAN_CHANGED_EVENT } from '../services/demoPlans';
 
 // Module visibility configuration from backend
 interface ModuleVisibility {
@@ -77,6 +80,7 @@ interface MenuItem {
   roles?: string[];
   children?: MenuItem[];
   moduleKey?: keyof ModuleVisibility; // Key to check in module visibility config
+  licenseFeature?: string; // License feature key required to show this item
 }
 
 const menuItems: MenuItem[] = [
@@ -100,6 +104,7 @@ const menuItems: MenuItem[] = [
     text: 'Mesas',
     icon: <TableIcon />,
     path: '/tables',
+    licenseFeature: 'tables',
   },
   {
     text: 'Ventas',
@@ -130,6 +135,7 @@ const menuItems: MenuItem[] = [
     path: '/inventory',
     roles: ['admin', 'manager'],
     moduleKey: 'enable_inventory_module',
+    licenseFeature: 'inventory',
   },
   {
     text: 'Ingredientes',
@@ -137,6 +143,7 @@ const menuItems: MenuItem[] = [
     path: '/ingredients',
     roles: ['admin', 'manager'],
     moduleKey: 'enable_ingredients_module',
+    licenseFeature: 'ingredients',
   },
   {
     text: 'Combos',
@@ -144,12 +151,14 @@ const menuItems: MenuItem[] = [
     path: '/combos',
     roles: ['admin', 'manager'],
     moduleKey: 'enable_combos_module',
+    licenseFeature: 'combos',
   },
   {
     text: 'Clientes',
     icon: <PeopleIcon />,
     path: '/customers',
     moduleKey: 'enable_customers_module',
+    licenseFeature: 'customers_module',
   },
   {
     text: 'Empleados',
@@ -170,6 +179,7 @@ const menuItems: MenuItem[] = [
     path: '/profit-report',
     roles: ['admin', 'manager'],
     moduleKey: 'enable_profit_module',
+    licenseFeature: 'profit_report',
   },
   {
     text: 'Contabilidad',
@@ -208,6 +218,20 @@ const MainLayout: React.FC = () => {
     enable_accounting_module: false,
     enable_discounts_module: true,
   });
+  // Licensed feature keys (driven by the demo plan switcher). Empty until the
+  // mock service resolves; while empty we render every item so nothing flickers.
+  const [licenseModules, setLicenseModules] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    const loadLicense = () => {
+      wailsLicenseService.getEnabledModules()
+        .then(modules => setLicenseModules(modules || {}))
+        .catch(() => setLicenseModules({}));
+    };
+    loadLicense();
+    window.addEventListener(DEMO_PLAN_CHANGED_EVENT, loadLicense as EventListener);
+    return () => window.removeEventListener(DEMO_PLAN_CHANGED_EVENT, loadLicense as EventListener);
+  }, []);
 
   // Load module visibility from backend
   useEffect(() => {
@@ -332,6 +356,9 @@ const MainLayout: React.FC = () => {
 
     // Check module visibility - if moduleKey is defined, check if module is enabled
     if (item.moduleKey && !moduleVisibility[item.moduleKey]) return null;
+
+    // Check license feature - hide items the active demo plan does not include
+    if (item.licenseFeature && Object.keys(licenseModules).length > 0 && !licenseModules[item.licenseFeature]) return null;
 
     const isSelected = location.pathname === item.path;
     const isExpanded = expandedItems.includes(item.text);
@@ -735,6 +762,7 @@ const MainLayout: React.FC = () => {
       >
         <Outlet />
       </Box>
+      <DemoPlanSwitcher />
     </Box>
   );
 };
