@@ -139,6 +139,10 @@ const Settings: React.FC = () => {
   const [selectedTab, setSelectedTab] = useState(0);
   const [moduleConfig, setModuleConfig] = useState<ModuleConfig[]>(loadModuleConfig);
   const [editMode, setEditMode] = useState(false);
+  // License-enabled modules (e.g. { bold: true, rappi: false }). Loaded once and
+  // used together with moduleConfig so tabs/sections related to features the user
+  // has not licensed are hidden entirely from Settings.
+  const [licenseModules, setLicenseModules] = useState<Record<string, boolean>>({});
   
   // Business Settings
   const [businessSettings, setBusinessSettings] = useState({
@@ -1386,6 +1390,8 @@ const Settings: React.FC = () => {
       setLicenseInfo(info);
       const key = await wailsLicenseService.getLicenseKey();
       setLicenseKey(key);
+      const modules = await wailsLicenseService.getEnabledModules();
+      setLicenseModules(modules || {});
     } catch { /* not ready */ }
   };
 
@@ -1507,21 +1513,21 @@ const Settings: React.FC = () => {
           sx={{ borderBottom: 1, borderColor: 'divider' }}
         >
           <Tab icon={<SettingsIcon />} label="General" />
-          {isModuleEnabled('empresa', moduleConfig) && <Tab icon={<BusinessIcon />} label="Empresa" />}
-          {isModuleEnabled('facturacion', moduleConfig) && <Tab icon={<ReceiptIcon />} label="Facturación" />}
-          {isModuleEnabled('metodos_pago', moduleConfig) && <Tab icon={<PaymentIcon />} label="Métodos de Pago" />}
-          {isModuleEnabled('tipos_pedido', moduleConfig) && <Tab icon={<CategoryIcon />} label="Tipos de Pedido" />}
-          {isModuleEnabled('paginas_pos', moduleConfig) && <Tab icon={<ViewModuleIcon />} label="Páginas POS" />}
-          {isModuleEnabled('impresion', moduleConfig) && <Tab icon={<PrintIcon />} label="Impresión" />}
-          {isModuleEnabled('google_sheets', moduleConfig) && <Tab icon={<CloudSyncIcon />} label="Google Sheets" />}
-          {isModuleEnabled('rappi', moduleConfig) && <Tab icon={<SmartphoneIcon />} label="Rappi POS" />}
-          {isModuleEnabled('bold', moduleConfig) && <Tab icon={<PaymentIcon />} label="Bold" />}
-          {isModuleEnabled('notificaciones', moduleConfig) && <Tab icon={<NotificationsIcon />} label="Notificaciones" />}
-          {isModuleEnabled('sistema', moduleConfig) && <Tab icon={<SecurityIcon />} label="Sistema" />}
-          {isModuleEnabled('websocket', moduleConfig) && <Tab icon={<WifiIcon />} label="WebSocket" />}
-          {isModuleEnabled('bd_dian', moduleConfig) && <Tab icon={<StorageIcon />} label="BD DIAN" />}
-          {isModuleEnabled('ia_mcp', moduleConfig) && <Tab icon={<SmartToyIcon />} label="IA (MCP)" />}
-          {isModuleEnabled('red_puertos', moduleConfig) && <Tab icon={<WifiIcon />} label="Red y Puertos" />}
+          {isModuleEnabled('empresa', moduleConfig, licenseModules) && <Tab icon={<BusinessIcon />} label="Empresa" />}
+          {isModuleEnabled('facturacion', moduleConfig, licenseModules) && <Tab icon={<ReceiptIcon />} label="Facturación" />}
+          {isModuleEnabled('metodos_pago', moduleConfig, licenseModules) && <Tab icon={<PaymentIcon />} label="Métodos de Pago" />}
+          {isModuleEnabled('tipos_pedido', moduleConfig, licenseModules) && <Tab icon={<CategoryIcon />} label="Tipos de Pedido" />}
+          {isModuleEnabled('paginas_pos', moduleConfig, licenseModules) && <Tab icon={<ViewModuleIcon />} label="Páginas POS" />}
+          {isModuleEnabled('impresion', moduleConfig, licenseModules) && <Tab icon={<PrintIcon />} label="Impresión" />}
+          {isModuleEnabled('google_sheets', moduleConfig, licenseModules) && <Tab icon={<CloudSyncIcon />} label="Google Sheets" />}
+          {isModuleEnabled('rappi', moduleConfig, licenseModules) && <Tab icon={<SmartphoneIcon />} label="Rappi POS" />}
+          {isModuleEnabled('bold', moduleConfig, licenseModules) && <Tab icon={<PaymentIcon />} label="Bold" />}
+          {isModuleEnabled('notificaciones', moduleConfig, licenseModules) && <Tab icon={<NotificationsIcon />} label="Notificaciones" />}
+          {isModuleEnabled('sistema', moduleConfig, licenseModules) && <Tab icon={<SecurityIcon />} label="Sistema" />}
+          {isModuleEnabled('websocket', moduleConfig, licenseModules) && <Tab icon={<WifiIcon />} label="WebSocket" />}
+          {isModuleEnabled('bd_dian', moduleConfig, licenseModules) && <Tab icon={<StorageIcon />} label="BD DIAN" />}
+          {isModuleEnabled('ia_mcp', moduleConfig, licenseModules) && <Tab icon={<SmartToyIcon />} label="IA (MCP)" />}
+          {isModuleEnabled('red_puertos', moduleConfig, licenseModules) && <Tab icon={<WifiIcon />} label="Red y Puertos" />}
           <Tab icon={<PaletteIcon />} label="Tema" />
         </Tabs>
 
@@ -1555,7 +1561,7 @@ const Settings: React.FC = () => {
           return (
             <>
               {/* Empresa Settings */}
-              {isModuleEnabled('empresa', moduleConfig) && (
+              {isModuleEnabled('empresa', moduleConfig, licenseModules) && (
                 <TabPanel value={selectedTab} index={tabIndices['empresa']}>
           {/* Business Settings */}
           <Grid container spacing={3}>
@@ -1955,7 +1961,7 @@ const Settings: React.FC = () => {
               )}
 
               {/* Facturacion Settings */}
-              {isModuleEnabled('facturacion', moduleConfig) && (
+              {isModuleEnabled('facturacion', moduleConfig, licenseModules) && (
                 <TabPanel value={selectedTab} index={tabIndices['facturacion']}>
           {/* DIAN Settings */}
           <Alert severity="info" sx={{ mb: 3 }}>
@@ -2961,28 +2967,28 @@ const Settings: React.FC = () => {
               )}
 
               {/* Payment Methods Settings */}
-              {isModuleEnabled('metodos_pago', moduleConfig) && (
+              {isModuleEnabled('metodos_pago', moduleConfig, licenseModules) && (
                 <TabPanel value={selectedTab} index={tabIndices['metodos_pago']}>
                   <PaymentMethodsSettings />
                 </TabPanel>
               )}
 
               {/* Order Types Settings */}
-              {isModuleEnabled('tipos_pedido', moduleConfig) && (
+              {isModuleEnabled('tipos_pedido', moduleConfig, licenseModules) && (
                 <TabPanel value={selectedTab} index={tabIndices['tipos_pedido']}>
                   <OrderTypesSettings />
                 </TabPanel>
               )}
 
               {/* Custom Pages Settings */}
-              {isModuleEnabled('paginas_pos', moduleConfig) && (
+              {isModuleEnabled('paginas_pos', moduleConfig, licenseModules) && (
                 <TabPanel value={selectedTab} index={tabIndices['paginas_pos']}>
                   <CustomPagesSettings />
                 </TabPanel>
               )}
 
               {/* Print Settings */}
-              {isModuleEnabled('impresion', moduleConfig) && (
+              {isModuleEnabled('impresion', moduleConfig, licenseModules) && (
                 <TabPanel value={selectedTab} index={tabIndices['impresion']}>
           {/* Print Settings */}
           <Alert severity="info" sx={{ mb: 3 }}>
@@ -3262,28 +3268,28 @@ const Settings: React.FC = () => {
               )}
 
               {/* Google Sheets Settings */}
-              {isModuleEnabled('google_sheets', moduleConfig) && (
+              {isModuleEnabled('google_sheets', moduleConfig, licenseModules) && (
                 <TabPanel value={selectedTab} index={tabIndices['google_sheets']}>
                   <GoogleSheetsSettings />
                 </TabPanel>
               )}
 
               {/* Rappi Settings */}
-              {isModuleEnabled('rappi', moduleConfig) && (
+              {isModuleEnabled('rappi', moduleConfig, licenseModules) && (
                 <TabPanel value={selectedTab} index={tabIndices['rappi']}>
                   <RappiSettings />
                 </TabPanel>
               )}
 
               {/* Bold Settings */}
-              {isModuleEnabled('bold', moduleConfig) && (
+              {isModuleEnabled('bold', moduleConfig, licenseModules) && (
                 <TabPanel value={selectedTab} index={tabIndices['bold']}>
                   <BoldSettings />
                 </TabPanel>
               )}
 
               {/* Notification Settings */}
-              {isModuleEnabled('notificaciones', moduleConfig) && (
+              {isModuleEnabled('notificaciones', moduleConfig, licenseModules) && (
                 <TabPanel value={selectedTab} index={tabIndices['notificaciones']}>
           {/* Notification Settings */}
           <Grid container spacing={3}>
@@ -3416,7 +3422,7 @@ const Settings: React.FC = () => {
               )}
 
               {/* System Settings */}
-              {isModuleEnabled('sistema', moduleConfig) && (
+              {isModuleEnabled('sistema', moduleConfig, licenseModules) && (
                 <TabPanel value={selectedTab} index={tabIndices['sistema']}>
           {/* System Settings */}
           <Grid container spacing={3}>
@@ -3643,7 +3649,7 @@ const Settings: React.FC = () => {
               )}
 
               {/* WebSocket Management */}
-              {isModuleEnabled('websocket', moduleConfig) && (
+              {isModuleEnabled('websocket', moduleConfig, licenseModules) && (
                 <TabPanel value={selectedTab} index={tabIndices['websocket']}>
           {/* WebSocket Management */}
           <Grid container spacing={3}>
@@ -3885,21 +3891,21 @@ const Settings: React.FC = () => {
               )}
 
               {/* DIAN Database Settings */}
-              {isModuleEnabled('bd_dian', moduleConfig) && (
+              {isModuleEnabled('bd_dian', moduleConfig, licenseModules) && (
                 <TabPanel value={selectedTab} index={tabIndices['bd_dian']}>
                   <DIANDatabaseSettings />
                 </TabPanel>
               )}
 
               {/* MCP (AI) Settings */}
-              {isModuleEnabled('ia_mcp', moduleConfig) && (
+              {isModuleEnabled('ia_mcp', moduleConfig, licenseModules) && (
                 <TabPanel value={selectedTab} index={tabIndices['ia_mcp']}>
                   <MCPSettings />
                 </TabPanel>
               )}
 
               {/* Network and Ports Settings */}
-              {isModuleEnabled('red_puertos', moduleConfig) && (
+              {isModuleEnabled('red_puertos', moduleConfig, licenseModules) && (
                 <TabPanel value={selectedTab} index={tabIndices['red_puertos']}>
                   <NetworkSettings />
                 </TabPanel>

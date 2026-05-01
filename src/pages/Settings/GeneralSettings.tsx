@@ -38,6 +38,7 @@ import {
   Apps as AppsIcon,
 } from '@mui/icons-material';
 import { wailsConfigService } from '../../services/wailsConfigService';
+import { wailsLicenseService } from '../../services/wailsLicenseService';
 import { toast } from 'react-toastify';
 
 // Module configuration interface
@@ -49,6 +50,7 @@ export interface ModuleConfig {
   enabled: boolean;
   category: 'essential' | 'optional' | 'development' | 'experimental';
   status?: 'production' | 'beta' | 'development' | 'experimental';
+  licenseFeature?: string; // If set, the module is only available when this feature is in the active license
 }
 
 // Default module configuration
@@ -71,6 +73,7 @@ export const defaultModuleConfig: ModuleConfig[] = [
     enabled: true,
     category: 'essential',
     status: 'production',
+    licenseFeature: 'dian_invoicing',
   },
   {
     id: 'metodos_pago',
@@ -117,6 +120,7 @@ export const defaultModuleConfig: ModuleConfig[] = [
     enabled: true,
     category: 'optional',
     status: 'production',
+    licenseFeature: 'google_sheets',
   },
   {
     id: 'websocket',
@@ -126,6 +130,7 @@ export const defaultModuleConfig: ModuleConfig[] = [
     enabled: false,
     category: 'optional',
     status: 'beta',
+    licenseFeature: 'kitchen_app', // also covers waiter_app — both ride on the WS server
   },
   {
     id: 'red_puertos',
@@ -135,6 +140,7 @@ export const defaultModuleConfig: ModuleConfig[] = [
     enabled: true,
     category: 'optional',
     status: 'production',
+    licenseFeature: 'tunneling',
   },
   {
     id: 'paginas_pos',
@@ -153,6 +159,7 @@ export const defaultModuleConfig: ModuleConfig[] = [
     enabled: false,
     category: 'optional',
     status: 'production',
+    licenseFeature: 'dian_invoicing',
   },
   // Development modules
   {
@@ -163,6 +170,7 @@ export const defaultModuleConfig: ModuleConfig[] = [
     enabled: false,
     category: 'development',
     status: 'development',
+    licenseFeature: 'rappi',
   },
   {
     id: 'notificaciones',
@@ -181,6 +189,7 @@ export const defaultModuleConfig: ModuleConfig[] = [
     enabled: false,
     category: 'development',
     status: 'development',
+    licenseFeature: 'bold',
   },
   // Experimental modules
   {
@@ -191,6 +200,7 @@ export const defaultModuleConfig: ModuleConfig[] = [
     enabled: false,
     category: 'experimental',
     status: 'experimental',
+    licenseFeature: 'mcp_ai',
   },
 ];
 
@@ -205,6 +215,7 @@ export interface AppModuleConfig {
   icon: React.ReactNode;
   enabled: boolean;
   backendKey: string; // Key in RestaurantConfig
+  licenseFeature?: string; // If set, the module is only available when this feature is in the active license
 }
 
 export const defaultAppModules: AppModuleConfig[] = [
@@ -215,6 +226,7 @@ export const defaultAppModules: AppModuleConfig[] = [
     icon: <InventoryIcon />,
     enabled: true,
     backendKey: 'enable_inventory_module',
+    licenseFeature: 'inventory',
   },
   {
     id: 'ingredients',
@@ -223,6 +235,7 @@ export const defaultAppModules: AppModuleConfig[] = [
     icon: <KitchenIcon />,
     enabled: false,
     backendKey: 'enable_ingredients_module',
+    licenseFeature: 'ingredients',
   },
   {
     id: 'combos',
@@ -231,6 +244,7 @@ export const defaultAppModules: AppModuleConfig[] = [
     icon: <FastfoodIcon />,
     enabled: false,
     backendKey: 'enable_combos_module',
+    licenseFeature: 'combos',
   },
   {
     id: 'customers',
@@ -239,6 +253,7 @@ export const defaultAppModules: AppModuleConfig[] = [
     icon: <PeopleIcon />,
     enabled: true,
     backendKey: 'enable_customers_module',
+    licenseFeature: 'customers_module',
   },
   {
     id: 'reports',
@@ -255,6 +270,7 @@ export const defaultAppModules: AppModuleConfig[] = [
     icon: <TrendingUpIcon />,
     enabled: true,
     backendKey: 'enable_profit_module',
+    licenseFeature: 'profit_report',
   },
   {
     id: 'accounting',
@@ -305,16 +321,41 @@ export const saveModuleConfig = (config: ModuleConfig[]) => {
   }
 };
 
-// Check if a specific module is enabled
-export const isModuleEnabled = (moduleId: string, config: ModuleConfig[]): boolean => {
-  const module = config.find(m => m.id === moduleId);
-  return module?.enabled ?? false;
+// Returns true when a license entry is needed but missing.
+// `licenseModules` is the map returned by wailsLicenseService.getEnabledModules().
+// While the license is still loading the map is empty — we treat that as "allow" so
+// nothing flickers off; gating only kicks in once the map has been populated.
+export const isLockedByLicense = (
+  feature: string | undefined,
+  licenseModules: Record<string, boolean>,
+): boolean => {
+  if (!feature) return false;
+  if (!licenseModules || Object.keys(licenseModules).length === 0) return false;
+  return licenseModules[feature] !== true;
 };
 
-// Check if an application module is enabled
-export const isAppModuleEnabled = (moduleId: string, modules: AppModuleConfig[]): boolean => {
+// Check if a specific module is enabled (and not locked by the active license)
+export const isModuleEnabled = (
+  moduleId: string,
+  config: ModuleConfig[],
+  licenseModules: Record<string, boolean> = {},
+): boolean => {
+  const module = config.find(m => m.id === moduleId);
+  if (!module || !module.enabled) return false;
+  if (isLockedByLicense(module.licenseFeature, licenseModules)) return false;
+  return true;
+};
+
+// Check if an application module is enabled (and not locked by the active license)
+export const isAppModuleEnabled = (
+  moduleId: string,
+  modules: AppModuleConfig[],
+  licenseModules: Record<string, boolean> = {},
+): boolean => {
   const module = modules.find(m => m.id === moduleId);
-  return module?.enabled ?? false;
+  if (!module || !module.enabled) return false;
+  if (isLockedByLicense(module.licenseFeature, licenseModules)) return false;
+  return true;
 };
 
 // Load application modules from backend config
@@ -338,6 +379,10 @@ const GeneralSettings: React.FC<GeneralSettingsProps> = ({
   const [appModules, setAppModules] = useState<AppModuleConfig[]>(defaultAppModules);
   const [loadingAppModules, setLoadingAppModules] = useState(true);
   const [savingModule, setSavingModule] = useState<string | null>(null);
+  // Modules unlocked by the active license. Used to hide rows entirely when the
+  // user does not have access to that feature (e.g. no `bold` in license → no
+  // Bold module shown in the Settings list).
+  const [licenseModules, setLicenseModules] = useState<Record<string, boolean>>({});
 
   // Load application modules from backend on mount
   useEffect(() => {
@@ -354,6 +399,10 @@ const GeneralSettings: React.FC<GeneralSettingsProps> = ({
       }
     };
     loadAppModules();
+
+    wailsLicenseService.getEnabledModules()
+      .then(modules => setLicenseModules(modules || {}))
+      .catch(() => { /* license not ready, all features visible by default */ });
   }, []);
 
   // Toggle application module and save to backend
@@ -454,9 +503,14 @@ const GeneralSettings: React.FC<GeneralSettingsProps> = ({
   };
 
   const renderModuleCategory = (category: 'essential' | 'optional' | 'development' | 'experimental') => {
-    const modules = moduleConfig.filter(m => m.category === category);
+    const modules = moduleConfig
+      .filter(m => m.category === category)
+      .filter(m => !isLockedByLicense(m.licenseFeature, licenseModules));
     const { title, subtitle } = getCategoryTitle(category);
     const color = getCategoryColor(category);
+
+    // Skip the entire category card if every module in it is hidden by license
+    if (modules.length === 0) return null;
 
     return (
       <Card
@@ -590,7 +644,9 @@ const GeneralSettings: React.FC<GeneralSettingsProps> = ({
           <Divider sx={{ my: 2 }} />
 
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            {appModules.map((module) => (
+            {appModules
+              .filter((module) => !isLockedByLicense(module.licenseFeature, licenseModules))
+              .map((module) => (
               <Box
                 key={module.id}
                 sx={{
