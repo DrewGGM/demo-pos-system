@@ -45,7 +45,7 @@ export async function UpdateOrder(id: number, order: any) {
 
 export async function DeleteOrder(id: number) { return remove('orders', id); }
 
-export async function CancelOrder(id: number) {
+export async function CancelOrder(id: number, _reason?: string) {
   return update('orders', id, { status: 'cancelled' });
 }
 

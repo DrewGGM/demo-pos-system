@@ -47,6 +47,7 @@ import { wailsAuthService } from '../../services/wailsAuthService';
 import { wailsSalesService, DIANClosingReport } from '../../services/wailsSalesService';
 import { wailsConfigService } from '../../services/wailsConfigService';
 import { toast } from 'react-toastify';
+import PreCloseChecksDialog from '../../components/cash/PreCloseChecksDialog';
 
 interface CashRegisterStatus {
   id: number;
@@ -92,6 +93,7 @@ const CashRegister: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
   const [closeDialog, setCloseDialog] = useState(false);
+  const [preCloseDialog, setPreCloseDialog] = useState(false);
   const [movementDialog, setMovementDialog] = useState(false);
   const [openingAmount, setOpeningAmount] = useState('');
   const [closingAmount, setClosingAmount] = useState('');
@@ -513,7 +515,7 @@ const CashRegister: React.FC = () => {
                 variant="contained"
                 color="error"
                 startIcon={<LockIcon />}
-                onClick={() => setCloseDialog(true)}
+                onClick={() => setPreCloseDialog(true)}
               >
                 Cerrar Caja
               </Button>
@@ -902,6 +904,17 @@ const CashRegister: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Pre-close checks: pending orders + failed DIAN invoices */}
+      <PreCloseChecksDialog
+        open={preCloseDialog}
+        onClose={() => setPreCloseDialog(false)}
+        sessionStartDate={registerStatus?.opened_at || null}
+        onAllResolved={() => {
+          setPreCloseDialog(false);
+          setCloseDialog(true);
+        }}
+      />
 
       {/* Close Register Dialog */}
       <Dialog open={closeDialog} onClose={() => setCloseDialog(false)} maxWidth="sm" fullWidth>
