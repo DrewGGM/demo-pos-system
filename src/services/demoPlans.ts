@@ -1,6 +1,8 @@
-// Demo plan catalog. Mirrors the feature keys exposed by the real
-// LicenseService.GetEnabledModules() so the demo can showcase how each
-// subscription tier looks without any real backend.
+// Demo plan catalog. Mirrors the public Lyroo website pricing
+// (https://lyroo.com.co/#precios) so prospects see the same names, prices and
+// inclusions as on marketing material. Each plan maps to a feature set
+// understood by the rest of the app (LicenseService.GetEnabledModules keys),
+// driving sidebar visibility, settings tabs, DIAN simulation, etc.
 //
 // The selected plan is persisted in localStorage under DEMO_PLAN_STORAGE_KEY
 // so reloads keep the same tier. Switching emits a custom event the layout
@@ -9,16 +11,17 @@
 export const DEMO_PLAN_STORAGE_KEY = 'demo_selected_plan';
 export const DEMO_PLAN_CHANGED_EVENT = 'demoPlanChanged';
 
-export type DemoPlanId = 'basico' | 'restaurante' | 'profesional' | 'empresarial';
+export type DemoPlanId = 'esencial' | 'comercio' | 'restaurante' | 'business';
 
 export interface DemoPlan {
   id: DemoPlanId;
   name: string;
-  tagline: string;
-  monthlyPrice: number; // COP
-  features: string[];
-  highlights: string[]; // Short marketing-style bullets shown on the switcher
-  badge?: string; // Optional ribbon ("Recomendado", "Más completo", etc.)
+  tagline: string; // "ideal for ..." line from the website
+  monthlyPrice: number; // COP — same numbers as the website
+  features: string[]; // Feature-flag keys (LicenseService)
+  highlights: string[]; // Marketing bullets shown in the switcher card
+  badge?: string; // Ribbon ("Más popular", etc.) — matches website "popular" flag
+  hasDian?: boolean; // Mirrors website hasDian — only used to show DIAN chip
 }
 
 // Base features included in every plan. Match LicenseService keys.
@@ -26,46 +29,47 @@ const BASE_FEATURES = ['pos_base', 'basic_reports'];
 
 export const DEMO_PLANS: DemoPlan[] = [
   {
-    id: 'basico',
-    name: 'Básico',
-    tagline: 'Para empezar a vender hoy mismo',
-    monthlyPrice: 49000,
+    id: 'esencial',
+    name: 'Esencial',
+    tagline: 'Vendedores y micronegocios sin DIAN',
+    monthlyPrice: 24900,
     features: [...BASE_FEATURES],
+    hasDian: false,
     highlights: [
-      'Punto de venta y reportes básicos',
-      'Ideal para tiendas pequeñas',
+      'POS táctil completo, 1 usuario',
+      'Productos, categorías y combos',
+      'Caja registradora con arqueo',
+      '1 impresora térmica',
+    ],
+  },
+  {
+    id: 'comercio',
+    name: 'Comercio',
+    tagline: 'Tiendas y comercios con DIAN',
+    monthlyPrice: 44900,
+    features: [
+      ...BASE_FEATURES,
+      'combos',
+      'inventory',
+      'customers_module',
+      'dian_invoicing',
+      'credit_notes',
+      'invoice_limits',
+    ],
+    hasDian: true,
+    highlights: [
+      'Facturación electrónica DIAN ilimitada',
+      'Notas crédito y débito',
+      'Inventario básico + alertas de stock',
+      '3 usuarios con roles',
     ],
   },
   {
     id: 'restaurante',
     name: 'Restaurante',
-    tagline: 'Operación completa de un restaurante',
-    monthlyPrice: 119000,
-    badge: 'Popular',
-    features: [
-      ...BASE_FEATURES,
-      'tables',
-      'combos',
-      'inventory',
-      'split_bill',
-      'kitchen_app',
-      'waiter_app',
-      'service_charge',
-      'multi_printer',
-      'customers_module',
-    ],
-    highlights: [
-      'Mesas, combos, inventario',
-      'Apps de cocina y meseros',
-      'Cargo por servicio y multi-impresora',
-    ],
-  },
-  {
-    id: 'profesional',
-    name: 'Profesional',
-    tagline: 'Facturación electrónica y costos avanzados',
-    monthlyPrice: 199000,
-    badge: 'Recomendado',
+    tagline: 'Restaurantes, cafeterías y bares',
+    monthlyPrice: 64900,
+    badge: 'Más popular',
     features: [
       ...BASE_FEATURES,
       'tables',
@@ -80,23 +84,22 @@ export const DEMO_PLANS: DemoPlan[] = [
       'dian_invoicing',
       'credit_notes',
       'invoice_limits',
-      'profit_report',
       'ingredients',
       'reports_pwa',
-      'google_sheets',
     ],
+    hasDian: true,
     highlights: [
-      'Facturación electrónica DIAN',
-      'Notas crédito y costos/ganancias',
-      'Reportes web y Google Sheets',
+      'Mesas y áreas (drag-and-drop)',
+      'App de Cocina (KDS) + App de Meseros',
+      'División de cuentas + cargo de servicio',
+      'Multi-impresora (caja, cocina), 5 usuarios',
     ],
   },
   {
-    id: 'empresarial',
-    name: 'Empresarial',
-    tagline: 'Todo el ecosistema, multi-sucursal e IA',
-    monthlyPrice: 349000,
-    badge: 'Más completo',
+    id: 'business',
+    name: 'Business',
+    tagline: 'Cadenas, multi-sede y empresas',
+    monthlyPrice: 89900,
     features: [
       ...BASE_FEATURES,
       'tables',
@@ -121,15 +124,17 @@ export const DEMO_PLANS: DemoPlan[] = [
       'multi_branch',
       'tunneling',
     ],
+    hasDian: true,
     highlights: [
-      'Datáfono Bold y pedidos Rappi',
-      'Asistente IA, multi-sucursal',
-      'Acceso remoto via túnel',
+      'Multi-sede ilimitado',
+      'Contabilidad NIIF (Libros, Estados financieros)',
+      'Bold, Rappi y Google Sheets',
+      'Asistente IA (MCP), 10 usuarios, SLA 24/7',
     ],
   },
 ];
 
-export const DEFAULT_DEMO_PLAN_ID: DemoPlanId = 'profesional';
+export const DEFAULT_DEMO_PLAN_ID: DemoPlanId = 'restaurante';
 
 export const getCurrentDemoPlanId = (): DemoPlanId => {
   try {

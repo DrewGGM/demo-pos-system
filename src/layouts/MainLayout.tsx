@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import lyrooLogo from '../assets/images/lyroo-logo.png';
+import lyrooLogo from '../assets/images/lyroo-logo.svg';
 import {
   AppBar,
   Box,
@@ -527,7 +527,8 @@ const MainLayout: React.FC = () => {
         </Typography>
       </Box>
 
-      <Box sx={{ p: 2, pt: 0, textAlign: 'center', borderTop: '1px solid', borderColor: 'divider' }}>
+      {/* Powered by Lyroo */}
+      <Box sx={{ p: 2, pt: 0, textAlign: 'center', borderTop: '1px solid', borderColor: 'divider', mt: 'auto' }}>
         <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.5 }}>
           Powered by
         </Typography>
@@ -535,7 +536,7 @@ const MainLayout: React.FC = () => {
           component="img"
           src={lyrooLogo}
           alt="Lyroo Technologies"
-          sx={{ height: 28, opacity: 0.85, cursor: 'pointer', filter: 'brightness(0.9)' }}
+          sx={{ height: 36, opacity: 0.9, cursor: 'pointer' }}
           onClick={() => window.open('https://lyroo.com.co', '_blank')}
         />
       </Box>

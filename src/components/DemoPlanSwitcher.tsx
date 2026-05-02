@@ -30,11 +30,16 @@ import {
 const formatCOP = (n: number) =>
   n.toLocaleString('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 });
 
+// Lyroo brand palette: primary purple #5B2DC4, accent green #00D4AA.
+// Each plan gets an accent that mirrors the website's hover treatment.
+const LYROO_PRIMARY = '#5B2DC4';
+const LYROO_ACCENT = '#00D4AA';
+
 const planAccent: Record<DemoPlanId, string> = {
-  basico: '#90a4ae',
-  restaurante: '#1976d2',
-  profesional: '#7b1fa2',
-  empresarial: '#c2185b',
+  esencial: '#90a4ae',
+  comercio: '#3f51b5',
+  restaurante: LYROO_PRIMARY,
+  business: '#c2185b',
 };
 
 const DemoPlanSwitcher: React.FC = () => {
@@ -68,10 +73,10 @@ const DemoPlanSwitcher: React.FC = () => {
             bottom: 24,
             right: 24,
             zIndex: 1300,
-            background: `linear-gradient(135deg, ${planAccent[selected]} 0%, #6a1b9a 100%)`,
-            boxShadow: `0 8px 24px ${alpha(planAccent[selected], 0.5)}`,
+            background: `linear-gradient(135deg, ${LYROO_PRIMARY} 0%, ${planAccent[selected]} 100%)`,
+            boxShadow: `0 8px 24px ${alpha(LYROO_PRIMARY, 0.5)}`,
             '&:hover': {
-              background: `linear-gradient(135deg, ${planAccent[selected]} 0%, #4a148c 100%)`,
+              background: `linear-gradient(135deg, #4a1f9e 0%, ${planAccent[selected]} 100%)`,
             },
           }}
         >
@@ -87,7 +92,7 @@ const DemoPlanSwitcher: React.FC = () => {
           sx: { width: { xs: '100%', sm: 420 }, p: 0 },
         }}
       >
-        <Box sx={{ p: 3, background: 'linear-gradient(135deg, #6a1b9a 0%, #1976d2 100%)', color: '#fff' }}>
+        <Box sx={{ p: 3, background: `linear-gradient(135deg, ${LYROO_PRIMARY} 0%, #4a1f9e 100%)`, color: '#fff' }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Box>
               <Typography variant="overline" sx={{ opacity: 0.85, letterSpacing: 1.5 }}>
@@ -143,9 +148,25 @@ const DemoPlanSwitcher: React.FC = () => {
                   )}
 
                   <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
-                    <Typography variant="h6" sx={{ color: accent, fontWeight: 700 }}>
-                      {plan.name}
-                    </Typography>
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                      <Typography variant="h6" sx={{ color: accent, fontWeight: 700 }}>
+                        {plan.name}
+                      </Typography>
+                      {plan.hasDian && (
+                        <Chip
+                          label="DIAN"
+                          size="small"
+                          sx={{
+                            bgcolor: alpha(LYROO_ACCENT, 0.15),
+                            color: LYROO_ACCENT,
+                            height: 20,
+                            fontSize: 10,
+                            fontWeight: 700,
+                            letterSpacing: 0.5,
+                          }}
+                        />
+                      )}
+                    </Stack>
                     {isCurrent && (
                       <Chip
                         icon={<CheckIcon sx={{ fontSize: 14 }} />}
@@ -204,10 +225,17 @@ const DemoPlanSwitcher: React.FC = () => {
           </Stack>
 
           <Box sx={{ mt: 3, p: 2, bgcolor: alpha('#000', 0.04), borderRadius: 2 }}>
-            <Typography variant="caption" color="text.secondary">
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
               <strong>Nota:</strong> Esta selección solo afecta esta sesión de demo. La página se
               recargará al cambiar de plan para reflejar los módulos habilitados en el menú y en
               configuración.
+            </Typography>
+            <Typography
+              variant="caption"
+              sx={{ display: 'block', mt: 1, color: LYROO_PRIMARY, cursor: 'pointer', fontWeight: 600 }}
+              onClick={() => window.open('https://lyroo.com.co/#precios', '_blank')}
+            >
+              ¿Necesitas un plan a la medida? Ver pack Custom →
             </Typography>
           </Box>
         </Box>
