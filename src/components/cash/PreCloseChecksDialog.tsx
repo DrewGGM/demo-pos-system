@@ -32,7 +32,7 @@ import {
   ArrowForward as GoIcon,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
-import { GetPendingOrders, CancelOrder } from '../../../wailsjs/go/services/OrderService';
+import { GetPendingOrders, DeleteOrder, UpdateTableStatus } from '../../../wailsjs/go/services/OrderService';
 import { ResendElectronicInvoice } from '../../../wailsjs/go/services/SalesService';
 
 interface PreCloseChecksDialogProps {
@@ -45,6 +45,7 @@ interface PreCloseChecksDialogProps {
 interface PendingOrderRow {
   id: number;
   order_number?: string;
+  table_id?: number | null;
   table_number?: number | string;
   total: number;
   status: string;
@@ -82,6 +83,7 @@ const PreCloseChecksDialog: React.FC<PreCloseChecksDialogProps> = ({
       const mapped: PendingOrderRow[] = (orders || []).map((o: any) => ({
         id: o.id,
         order_number: o.order_number || `#${o.id}`,
+        table_id: o.table_id ?? o.table?.id ?? null,
         table_number: o.table?.number,
         total: Number(o.total) || 0,
         status: o.status,
@@ -126,15 +128,24 @@ const PreCloseChecksDialog: React.FC<PreCloseChecksDialogProps> = ({
     navigate(`/pos?order=${orderId}`);
   };
 
-  const handleCancelOrder = async (orderId: number) => {
-    if (!window.confirm('¿Cancelar esta orden? Esta acción no se puede deshacer.')) return;
-    setBusyOrderId(orderId);
+  const handleCancelOrder = async (order: PendingOrderRow) => {
+    if (!window.confirm('¿Eliminar esta orden? Se borrará y la mesa quedará disponible.')) return;
+    setBusyOrderId(order.id);
     try {
-      await CancelOrder(orderId, 'Cancelada al cierre de caja');
-      toast.success('Orden cancelada');
-      setPendingOrders((prev) => prev.filter((o) => o.id !== orderId));
+      // Match the POS behavior: delete the order outright (no soft-cancel) and
+      // free the table if it was occupied by this order.
+      await DeleteOrder(order.id);
+      if (order.table_id) {
+        try {
+          await UpdateTableStatus(order.table_id, 'available');
+        } catch (tblErr) {
+          console.warn('Could not free table after deleting order:', tblErr);
+        }
+      }
+      toast.success('Orden eliminada');
+      setPendingOrders((prev) => prev.filter((o) => o.id !== order.id));
     } catch (e: any) {
-      toast.error('Error al cancelar: ' + (e?.message || e));
+      toast.error('Error al eliminar: ' + (e?.message || e));
     } finally {
       setBusyOrderId(null);
     }
@@ -220,7 +231,7 @@ const PreCloseChecksDialog: React.FC<PreCloseChecksDialogProps> = ({
               </Typography>
             </Stack>
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-              Estas órdenes no han sido cobradas. Procésalas en el POS o cancélalas antes de cerrar.
+              Estas órdenes no han sido cobradas. Procésalas en el POS o elimínalas antes de cerrar.
             </Typography>
             <List dense disablePadding sx={{ border: 1, borderColor: 'divider', borderRadius: 1 }}>
               {pendingOrders.map((o, i) => (
@@ -259,12 +270,12 @@ const PreCloseChecksDialog: React.FC<PreCloseChecksDialogProps> = ({
                           </IconButton>
                         </span>
                       </Tooltip>
-                      <Tooltip title="Cancelar orden">
+                      <Tooltip title="Eliminar orden y liberar mesa">
                         <span>
                           <IconButton
                             edge="end"
                             color="error"
-                            onClick={() => handleCancelOrder(o.id)}
+                            onClick={() => handleCancelOrder(o)}
                             disabled={busyOrderId === o.id}
                           >
                             {busyOrderId === o.id ? <CircularProgress size={18} /> : <CancelIcon />}
