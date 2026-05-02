@@ -33,7 +33,7 @@ export const DEMO_PLANS: DemoPlan[] = [
     name: 'Esencial',
     tagline: 'Vendedores y micronegocios sin DIAN',
     monthlyPrice: 24900,
-    features: [...BASE_FEATURES],
+    features: [...BASE_FEATURES, 'combos'],
     hasDian: false,
     highlights: [
       'POS táctil completo, 1 usuario',
