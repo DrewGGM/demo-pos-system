@@ -1133,6 +1133,11 @@ const BalanceSheet: React.FC = () => {
         <>
           <Alert severity={balanced ? 'success' : 'error'} sx={{ mb: 2 }}>
             Activo ({fmtCOP(assets?.subtotal || 0)}) {balanced ? '=' : '!='} Pasivo ({fmtCOP(liabilities?.subtotal || 0)}) + Patrimonio ({fmtCOP(equity?.subtotal || 0)}) = {fmtCOP(equation)}
+            {!balanced && (
+              <Typography variant="caption" sx={{ display: 'block', mt: 0.5 }}>
+                Si la diferencia coincide con un asiento manual reciente, revisa que sus líneas sumen igual en débitos y créditos. La utilidad/pérdida del período ya se incluye automáticamente en Patrimonio.
+              </Typography>
+            )}
           </Alert>
 
           <Grid container spacing={2}>
