@@ -120,6 +120,23 @@ export async function GetFinancialNotes(_year: number) {
 
 export async function CloseYear(_year: number, _ctx?: any) {}
 
+// Demo: simulates discovering 3 historical cash closes that lack journal entries.
+let demoSyncRemaining = 3;
+export async function SyncHistoricalEntries(_since: string) {
+  const created = demoSyncRemaining;
+  const report = {
+    closes_scanned: 5,
+    closes_entered: created,
+    closes_skipped: 5 - created,
+    movements_scanned: 2,
+    movements_entered: 0,
+    movements_skipped: 2,
+    errors: [],
+  };
+  demoSyncRemaining = 0; // second run shows everything already synced
+  return report;
+}
+
 // Quick Entry
 export async function RegisterDailySales(_amount: number, _desc: string, _ctx?: any) { return sampleEntries[0]; }
 export async function RegisterExpense(_type: string, _amount: number, _desc: string, _ctx?: any) { return sampleEntries[1]; }

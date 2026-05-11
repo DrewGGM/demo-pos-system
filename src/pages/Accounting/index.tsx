@@ -1356,6 +1356,16 @@ const FinancialNotes: React.FC = () => {
 // Tab 5: Ingreso Rapido
 // ===========================================================================
 
+interface SyncReport {
+  closes_scanned: number;
+  closes_entered: number;
+  closes_skipped: number;
+  movements_scanned: number;
+  movements_entered: number;
+  movements_skipped: number;
+  errors: string[] | null;
+}
+
 const QuickEntry: React.FC = () => {
   // Daily sales form
   const [salesAmount, setSalesAmount] = useState<number | ''>('');
@@ -1369,6 +1379,12 @@ const QuickEntry: React.FC = () => {
   const [expDesc, setExpDesc] = useState('');
   const [expDate, setExpDate] = useState<Date | null>(new Date());
   const [savingExp, setSavingExp] = useState(false);
+
+  // Historical sync
+  const [syncDialogOpen, setSyncDialogOpen] = useState(false);
+  const [syncSince, setSyncSince] = useState<Date | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<SyncReport | null>(null);
 
   const expenseTypes = [
     { code: '5120', label: 'Arriendo' },
@@ -1408,6 +1424,23 @@ const QuickEntry: React.FC = () => {
       toast.error('Error: ' + (e?.message || e));
     } finally {
       setSavingExp(false);
+    }
+  };
+
+  const handleSync = async () => {
+    setSyncing(true);
+    setSyncResult(null);
+    try {
+      const s = (window as any).go?.services?.AccountingService;
+      const result: SyncReport = await s.SyncHistoricalEntries(dateStr(syncSince));
+      setSyncResult(result);
+      const newEntries = (result.closes_entered || 0) + (result.movements_entered || 0);
+      if (newEntries > 0) toast.success(`${newEntries} asiento${newEntries === 1 ? '' : 's'} generado${newEntries === 1 ? '' : 's'}`);
+      else toast.info('No había movimientos pendientes por sincronizar');
+    } catch (e: any) {
+      toast.error('Error sincronizando: ' + (e?.message || e));
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -1506,6 +1539,101 @@ const QuickEntry: React.FC = () => {
           </CardContent>
         </Card>
       </Grid>
+
+      {/* Sync historical journal entries */}
+      <Grid item xs={12}>
+        <Card sx={{ borderLeft: 4, borderColor: 'info.main' }}>
+          <CardHeader
+            avatar={<RefreshIcon color="info" />}
+            title="Sincronizar contabilidad histórica"
+            titleTypographyProps={{ fontWeight: 'bold' }}
+            subheader="Si activaste la contabilidad después de empezar a operar, esto genera los asientos contables faltantes para las ventas y movimientos de caja anteriores."
+          />
+          <CardContent>
+            <Alert severity="info" sx={{ mb: 2 }}>
+              Genera un asiento por cada <strong>cierre de caja</strong> y cada <strong>movimiento de caja</strong> (depósito/retiro)
+              que aún no tenga su contrapartida contable. Es idempotente: si vuelves a correrlo, solo agregará lo nuevo.
+            </Alert>
+            <Button
+              variant="contained"
+              color="info"
+              startIcon={<RefreshIcon />}
+              onClick={() => { setSyncResult(null); setSyncDialogOpen(true); }}
+            >
+              Revisar y sincronizar
+            </Button>
+          </CardContent>
+        </Card>
+      </Grid>
+
+      {/* Sync dialog */}
+      <Dialog open={syncDialogOpen} onClose={() => setSyncDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Sincronizar contabilidad histórica</DialogTitle>
+        <DialogContent>
+          {!syncResult && (
+            <>
+              <Alert severity="warning" sx={{ mb: 2 }}>
+                Se generarán asientos contables para los cierres de caja y movimientos anteriores que no estén registrados aún.
+                Deja la fecha vacía para incluir <strong>todo el histórico</strong>.
+              </Alert>
+              <DatePicker
+                label="Desde fecha (opcional)"
+                value={syncSince}
+                onChange={setSyncSince}
+                slotProps={{ textField: { size: 'small', fullWidth: true, helperText: 'Solo se incluyen registros con fecha igual o posterior' } }}
+              />
+              {syncing && <LinearProgress sx={{ mt: 2 }} />}
+            </>
+          )}
+
+          {syncResult && (
+            <>
+              <Alert severity="success" sx={{ mb: 2 }}>
+                Sincronización completada.
+              </Alert>
+              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mb: 2 }}>
+                <Paper variant="outlined" sx={{ p: 2 }}>
+                  <Typography variant="caption" color="text.secondary">Cierres de caja</Typography>
+                  <Typography variant="h6">{syncResult.closes_entered}</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    de {syncResult.closes_scanned} encontrados · {syncResult.closes_skipped} ya estaban
+                  </Typography>
+                </Paper>
+                <Paper variant="outlined" sx={{ p: 2 }}>
+                  <Typography variant="caption" color="text.secondary">Movimientos de caja</Typography>
+                  <Typography variant="h6">{syncResult.movements_entered}</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    de {syncResult.movements_scanned} encontrados · {syncResult.movements_skipped} omitidos
+                  </Typography>
+                </Paper>
+              </Box>
+              {syncResult.errors && syncResult.errors.length > 0 && (
+                <Alert severity="warning">
+                  <Typography variant="caption" fontWeight="bold">Errores ({syncResult.errors.length}):</Typography>
+                  <Box component="ul" sx={{ pl: 2, m: 0 }}>
+                    {syncResult.errors.slice(0, 5).map((e, i) => (
+                      <li key={i}><Typography variant="caption">{e}</Typography></li>
+                    ))}
+                    {syncResult.errors.length > 5 && (
+                      <li><Typography variant="caption">…y {syncResult.errors.length - 5} más</Typography></li>
+                    )}
+                  </Box>
+                </Alert>
+              )}
+            </>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => { setSyncDialogOpen(false); setSyncResult(null); }} disabled={syncing}>
+            {syncResult ? 'Cerrar' : 'Cancelar'}
+          </Button>
+          {!syncResult && (
+            <Button onClick={handleSync} variant="contained" color="info" disabled={syncing} startIcon={<RefreshIcon />}>
+              {syncing ? 'Sincronizando...' : 'Sincronizar ahora'}
+            </Button>
+          )}
+        </DialogActions>
+      </Dialog>
     </Grid>
   );
 };
