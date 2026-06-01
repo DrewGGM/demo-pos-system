@@ -27,6 +27,7 @@ import {
   Divider,
   Tabs,
   Tab,
+  Tooltip,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -635,6 +636,23 @@ const Sales: React.FC = () => {
                       <Typography variant="body2" fontWeight="bold">
                         ${sale.total.toLocaleString('es-CO')}
                       </Typography>
+                      {(sale.discount || 0) > 0 && (
+                        <Tooltip
+                          title={
+                            sale.order?.discount_reason_text ||
+                            (sale.order as any)?.discount_reason?.name ||
+                            'Descuento aplicado'
+                          }
+                        >
+                          <Chip
+                            size="small"
+                            label={`-$${(sale.discount || 0).toLocaleString('es-CO')}`}
+                            color="error"
+                            variant="outlined"
+                            sx={{ mt: 0.5, height: 18, fontSize: 10 }}
+                          />
+                        </Tooltip>
+                      )}
                     </TableCell>
                     <TableCell>{getPaymentMethodChip(sale.payment_details?.[0]?.payment_method?.name || 'cash')}</TableCell>
                     <TableCell>
@@ -1096,8 +1114,19 @@ const Sales: React.FC = () => {
                   </Typography>
                 </Box>
                 {selectedSale.discount && selectedSale.discount > 0 && (
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                    <Typography variant="body2" color="error">Descuento:</Typography>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+                    <Box>
+                      <Typography variant="body2" color="error">Descuento:</Typography>
+                      {((selectedSale as any).order?.discount_reason_text ||
+                        (selectedSale as any).discount_reason_text ||
+                        (selectedSale as any).order?.discount_reason?.name) && (
+                        <Typography variant="caption" color="text.secondary">
+                          {(selectedSale as any).order?.discount_reason_text ||
+                            (selectedSale as any).discount_reason_text ||
+                            (selectedSale as any).order?.discount_reason?.name}
+                        </Typography>
+                      )}
+                    </Box>
                     <Typography variant="body2" color="error">
                       -${selectedSale.discount.toLocaleString('es-CO')}
                     </Typography>

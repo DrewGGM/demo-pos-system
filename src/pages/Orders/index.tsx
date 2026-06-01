@@ -712,8 +712,17 @@ const Orders: React.FC = () => {
                   </Typography>
                 </Box>
                 {selectedOrder.discount && selectedOrder.discount > 0 && (
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                    <Typography variant="body2" color="error">Descuento:</Typography>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+                    <Box>
+                      <Typography variant="body2" color="error">Descuento:</Typography>
+                      {(selectedOrder.discount_reason_text ||
+                        (selectedOrder as any).discount_reason?.name) && (
+                        <Typography variant="caption" color="text.secondary">
+                          {selectedOrder.discount_reason_text ||
+                            (selectedOrder as any).discount_reason?.name}
+                        </Typography>
+                      )}
+                    </Box>
                     <Typography variant="body2" color="error">
                       -${selectedOrder.discount.toLocaleString('es-CO')}
                     </Typography>

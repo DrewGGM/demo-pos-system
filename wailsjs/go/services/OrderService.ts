@@ -21,15 +21,33 @@ export async function CreateOrder(order: any) {
     };
   });
   const subtotal = items.reduce((s: number, i: any) => s + i.subtotal, 0);
+
+  // Normalize discount like the real Go OrderService.calculateOrderTotals:
+  // - "percentage" raw value (e.g. 10) becomes subtotal × 10/100
+  // - clamped to [0, subtotal]
+  // The frontend keeps `discount_type` for re-rendering the dialog with the
+  // same mode; the stored `discount` is always the absolute amount.
+  let discount = order.discount || 0;
+  if (order.discount_type === 'percentage') {
+    if (discount < 0) discount = 0;
+    if (discount > 100) discount = 100;
+    discount = subtotal * (discount / 100);
+  }
+  if (discount < 0) discount = 0;
+  if (discount > subtotal) discount = subtotal;
+
   const newOrder = {
     ...order,
     order_number: orderNumber,
     items,
     subtotal,
     tax: 0,
-    discount: order.discount || 0,
+    discount,
+    discount_type: order.discount_type || 'amount',
+    discount_reason_id: order.discount_reason_id,
+    discount_reason_text: order.discount_reason_text || '',
     service_charge: order.service_charge || 0,
-    total: subtotal + (order.service_charge || 0) - (order.discount || 0),
+    total: subtotal + (order.service_charge || 0) - discount,
     status: 'pending',
     created_at: now,
     updated_at: now,
@@ -39,8 +57,59 @@ export async function CreateOrder(order: any) {
 
 export async function GetOrder(id: number) { return getById('orders', id); }
 
-export async function UpdateOrder(id: number, order: any) {
-  return update('orders', id, order);
+// The real Wails binding accepts a single Order object (with id inside) —
+// the TS wrapper in wailsOrderService.ts calls it that way. The earlier mock
+// signature `(id, order)` made every cart-save raise "Error al actualizar orden".
+export async function UpdateOrder(order: any) {
+  if (!order || !order.id) {
+    throw new Error('UpdateOrder: missing id');
+  }
+
+  // Recompute items + subtotal from the items array sent by the cart, just
+  // like CreateOrder. Without this, items added/removed after creation aren't
+  // re-priced and the discount math goes off.
+  const items = (order.items || []).map((item: any, idx: number) => {
+    const unitPrice = item.unit_price || item.price || 0;
+    return {
+      id: item.id || Date.now() + idx,
+      product_id: item.product_id,
+      product: item.product,
+      quantity: item.quantity || 1,
+      unit_price: unitPrice,
+      price: unitPrice,
+      subtotal: unitPrice * (item.quantity || 1),
+      notes: item.notes || '',
+      modifiers: item.modifiers || [],
+      status: item.status || 'pending',
+      created_at: item.created_at,
+      updated_at: new Date().toISOString(),
+    };
+  });
+  const subtotal = items.reduce((s: number, i: any) => s + i.subtotal, 0);
+
+  // Same percentage→absolute normalization as CreateOrder.
+  let discount = order.discount || 0;
+  if (order.discount_type === 'percentage') {
+    if (discount < 0) discount = 0;
+    if (discount > 100) discount = 100;
+    discount = subtotal * (discount / 100);
+  }
+  if (discount < 0) discount = 0;
+  if (discount > subtotal) discount = subtotal;
+
+  const serviceCharge = order.service_charge || 0;
+  return update('orders', order.id, {
+    ...order,
+    items,
+    subtotal,
+    discount,
+    discount_type: order.discount_type || 'amount',
+    discount_reason_id: order.discount_reason_id,
+    discount_reason_text: order.discount_reason_text || '',
+    service_charge: serviceCharge,
+    total: subtotal - discount + serviceCharge,
+    updated_at: new Date().toISOString(),
+  });
 }
 
 export async function DeleteOrder(id: number) { return remove('orders', id); }
