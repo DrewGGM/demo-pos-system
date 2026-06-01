@@ -24,12 +24,15 @@ export function usePermissions() {
     }
     setLoading(true);
     try {
-      const m = await wailsPermissionService.getForEmployee(user.id);
+      // Pass user.role as a hint so the service can serve the baseline matrix
+      // when Wails bindings aren't loaded (demo `npm run dev` without a
+      // regenerated Go binding).
+      const m = await wailsPermissionService.getForEmployee(user.id, user.role);
       setSnapshot(m);
     } finally {
       setLoading(false);
     }
-  }, [user?.id]);
+  }, [user?.id, user?.role]);
 
   useEffect(() => {
     void reload();
