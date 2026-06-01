@@ -897,8 +897,8 @@ const POS: React.FC = () => {
   }, [selectedItemForNotes, itemNotes]);
 
   return (
-    <Box sx={{ display: 'flex', height: 'calc(100vh - 64px)', overflow: 'hidden' }}>
-      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', p: 2, minWidth: 0, overflow: 'hidden' }}>
+    <Box sx={{ display: 'flex', height: 'calc(100vh - 112px)', overflow: 'hidden' }}>
+      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', p: 2, pl: { xs: 1, md: 2 }, pr: { xs: 1, md: 2 }, minWidth: 0, overflow: 'hidden' }}>
         <TextField
           fullWidth
           variant="outlined"
@@ -1022,7 +1022,7 @@ const POS: React.FC = () => {
           <Grid container spacing={2}>
             {showCombosTab ? (
               combos.map((combo) => (
-                <Grid item xs={6} sm={4} md={3} key={`combo-${combo.id}`}>
+                <Grid item xs={6} sm={4} md={4} lg={3} xl={2} key={`combo-${combo.id}`}>
                   <Card
                     sx={{
                       height: '100%',
@@ -1091,7 +1091,7 @@ const POS: React.FC = () => {
             ) : (
               // Show Products Grid
               filteredProducts.map((product) => (
-                <Grid item xs={6} sm={4} md={3} key={product.id}>
+                <Grid item xs={6} sm={4} md={4} lg={3} xl={2} key={product.id}>
                   <Card
                     sx={{
                       height: '100%',
@@ -1137,7 +1137,16 @@ const POS: React.FC = () => {
       </Box>
 
       {/* Right Panel - Order */}
-      <Paper sx={{ width: 400, flexShrink: 0, display: 'flex', flexDirection: 'column' }} elevation={3}>
+      <Paper
+        sx={{
+          width: { xs: 300, sm: 320, md: 340, lg: 380, xl: 400 },
+          flexShrink: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          minWidth: 0,
+        }}
+        elevation={3}
+      >
         {/* Order Header */}
         <Box sx={{ p: 2, backgroundColor: 'primary.main', color: 'white' }}>
           <Typography variant="h6">Orden Actual</Typography>
