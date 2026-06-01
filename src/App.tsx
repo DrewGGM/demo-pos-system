@@ -24,6 +24,7 @@ import Combos from './pages/Combos';
 import Profile from './pages/Profile';
 import ProfitReport from './pages/ProfitReport';
 import Accounting from './pages/Accounting';
+import Permissions from './pages/Permissions';
 
 import { useAuth } from './hooks';
 
@@ -64,6 +65,7 @@ const App: React.FC = () => {
           <Route path="/profit-report" element={<ProfitReport />} />
           <Route path="/accounting" element={<Accounting />} />
           <Route path="/settings/*" element={<Settings />} />
+          <Route path="/permissions" element={<Permissions />} />
         </Route>
 
         <Route path="/" element={<Navigate to={isAuthenticated ? (cashRegisterId ? "/dashboard" : "/cash-register") : "/login"} />} />

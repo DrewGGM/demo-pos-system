@@ -44,6 +44,7 @@ import {
   Notifications as NotificationsIcon,
   MonetizationOn as MoneyIcon,
   Group as GroupIcon,
+  Security as SecurityIcon,
   AccountCircle,
   Kitchen as KitchenIcon,
   Fastfood as FastfoodIcon,
@@ -164,6 +165,12 @@ const menuItems: MenuItem[] = [
     text: 'Empleados',
     icon: <GroupIcon />,
     path: '/employees',
+    roles: ['admin'],
+  },
+  {
+    text: 'Permisos',
+    icon: <SecurityIcon />,
+    path: '/permissions',
     roles: ['admin'],
   },
   {
@@ -365,7 +372,7 @@ const MainLayout: React.FC = () => {
     const hasChildren = item.children && item.children.length > 0;
 
     // Rutas que requieren caja abierta (todas excepto estas)
-    const allowedWithoutCash = ['/cash-register', '/settings', '/employees'];
+    const allowedWithoutCash = ['/cash-register', '/settings', '/employees', '/permissions'];
     const requiresCashRegister = !allowedWithoutCash.some(route => item.path.startsWith(route));
     const isDisabled = requiresCashRegister && !cashRegisterId;
 

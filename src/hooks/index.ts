@@ -1,6 +1,7 @@
 export { useAuth } from './useAuth';
 export { useWebSocket } from './useWebSocket';
 export { useDIANMode } from './useDIANMode';
+export { usePermissions } from './usePermissions';
 export { useNotifications } from '../contexts/NotificationContext';
 
 export { useDialog, useMultipleDialogs, useConfirmDialog } from './useDialog';

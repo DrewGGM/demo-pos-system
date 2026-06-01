@@ -25,6 +25,9 @@ interface DiscountDialogProps {
   initialType: 'amount' | 'percentage';
   initialReasonId?: number;
   initialReasonText?: string;
+  // Max % from pos.discount.max_percent. 0 means no cap. Used to validate
+  // before submitting; backend re-validates so this is a UX nicety.
+  maxPercent?: number;
   onClose: () => void;
   onApply: (payload: {
     amount: number;
@@ -50,6 +53,7 @@ const DiscountDialog: React.FC<DiscountDialogProps> = ({
   initialType,
   initialReasonId,
   initialReasonText,
+  maxPercent = 0,
   onClose,
   onApply,
   onClear,
@@ -120,6 +124,17 @@ const DiscountDialog: React.FC<DiscountDialogProps> = ({
     if (type === 'amount' && raw > subtotal) {
       setError('El descuento no puede ser mayor al subtotal');
       return;
+    }
+    // Permission cap. Backend re-validates with the same rule.
+    if (maxPercent > 0) {
+      const effectivePct =
+        type === 'percentage' ? raw : (subtotal > 0 ? (raw / subtotal) * 100 : 0);
+      if (effectivePct > maxPercent) {
+        setError(
+          `Tu rol solo puede aplicar hasta ${maxPercent}% (${effectivePct.toFixed(1)}% solicitado)`,
+        );
+        return;
+      }
     }
     if (!reasonId) {
       setError('Selecciona un motivo');

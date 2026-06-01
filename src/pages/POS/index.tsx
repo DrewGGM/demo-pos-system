@@ -41,7 +41,7 @@ import {
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 
-import { useAuth, useWebSocket, useDIANMode } from '../../hooks';
+import { useAuth, useWebSocket, useDIANMode, usePermissions } from '../../hooks';
 import { wailsProductService } from '../../services/wailsProductService';
 import { wailsCustomPageService } from '../../services/wailsCustomPageService';
 import { wailsOrderService, CreateOrderData } from '../../services/wailsOrderService';
@@ -68,6 +68,10 @@ import { Combo } from '../../types/models';
 const POS: React.FC = () => {
   const { user, cashRegisterId } = useAuth();
   const { sendMessage, subscribe } = useWebSocket();
+  const { can: canPerm, numberValue: permValue } = usePermissions();
+  const canApplyDiscount = canPerm('pos.discount.apply');
+  // 0 means "no cap" by convention (see seedPermissions).
+  const maxDiscountPercent = permValue('pos.discount.max_percent');
   const { isDIANMode, isElectronicInvoicingEnabled } = useDIANMode();
   const location = useLocation();
   const [searchParams] = useSearchParams();
@@ -1275,7 +1279,8 @@ const POS: React.FC = () => {
             variant={orderTotals.discountAmount > 0 ? 'contained' : 'outlined'}
             color={orderTotals.discountAmount > 0 ? 'primary' : 'inherit'}
             onClick={() => setDiscountDialogOpen(true)}
-            disabled={orderItems.length === 0}
+            disabled={orderItems.length === 0 || !canApplyDiscount}
+            title={!canApplyDiscount ? 'Tu rol no puede aplicar descuentos' : undefined}
           >
             {orderTotals.discountAmount > 0
               ? `-$${orderTotals.discountAmount.toLocaleString('es-CO')}`
@@ -1763,6 +1768,7 @@ const POS: React.FC = () => {
         initialType={discountType}
         initialReasonId={discountReasonId}
         initialReasonText={discountReasonText}
+        maxPercent={maxDiscountPercent}
         onClose={() => setDiscountDialogOpen(false)}
         onApply={({ amount, type, reasonId, reasonText }) => {
           setDiscountRaw(amount);
