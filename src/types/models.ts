@@ -149,6 +149,10 @@ export interface Order extends BaseModel {
   subtotal: number;
   tax: number;
   discount: number;
+  discount_type?: 'amount' | 'percentage';
+  discount_reason_id?: number;
+  discount_reason?: DiscountReason;
+  discount_reason_text?: string;
   service_charge?: number; // Cargo por servicio
   total: number;
   notes?: string;
@@ -517,6 +521,17 @@ export interface IngredientMovement extends BaseModel {
   employee?: Employee;
 }
 
+export interface DiscountReason {
+  id: number;
+  name: string;
+  dian_discount_id: number;
+  dian_code: string;
+  is_active: boolean;
+  is_default: boolean;
+  allow_custom_text: boolean;
+  display_order: number;
+}
+
 export interface CreateOrderData {
   type: 'dine_in' | 'takeout' | 'delivery';
   order_type_id?: number;
@@ -530,6 +545,13 @@ export interface CreateOrderData {
   delivery_address?: string;
   delivery_phone?: string;
   service_charge?: number; // Cargo por servicio
+  // Discount: send the raw value the cashier typed plus the type. The backend
+  // converts percentage → absolute amount and persists the absolute on
+  // order.Discount. discount_reason_id is the FK into discount_reasons.
+  discount?: number;
+  discount_type?: 'amount' | 'percentage';
+  discount_reason_id?: number;
+  discount_reason_text?: string;
 }
 
 export interface ProcessSaleData {

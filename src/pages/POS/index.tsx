@@ -60,6 +60,7 @@ import TableSelector from '../../components/pos/TableSelector';
 import OrderList from '../../components/pos/OrderList';
 import DeliveryInfoDialog, { DeliveryInfo } from '../../components/pos/DeliveryInfoDialog';
 import SplitBillDialog, { BillSplit, UnallocatedItem } from '../../components/pos/SplitBillDialog';
+import DiscountDialog from '../../components/pos/DiscountDialog';
 import { wailsInvoiceLimitService, InvoiceLimitStatus } from '../../services/wailsInvoiceLimitService';
 import { wailsComboService } from '../../services/wailsComboService';
 import { Combo } from '../../types/models';
@@ -106,6 +107,15 @@ const POS: React.FC = () => {
   const [orderTypeDialogOpen, setOrderTypeDialogOpen] = useState(false);
   const [deliveryDialogOpen, setDeliveryDialogOpen] = useState(false);
   const [splitBillDialogOpen, setSplitBillDialogOpen] = useState(false);
+  const [discountDialogOpen, setDiscountDialogOpen] = useState(false);
+  // Discount state. discountRaw is the cashier's input (5 means 5% or $5 depending on type);
+  // discountAmount in orderTotals is the resolved absolute value used for display and totals.
+  // The backend re-applies the same normalization, so the source of truth on the wire is
+  // {discount: discountRaw, discount_type: discountType, discount_reason_id, discount_reason_text}.
+  const [discountRaw, setDiscountRaw] = useState<number>(0);
+  const [discountType, setDiscountType] = useState<'amount' | 'percentage'>('amount');
+  const [discountReasonId, setDiscountReasonId] = useState<number | undefined>(undefined);
+  const [discountReasonText, setDiscountReasonText] = useState<string>('');
   const [billSplits, setBillSplits] = useState<BillSplit[]>([]);
   const [activeSplitIndex, setActiveSplitIndex] = useState(0);
   const [originalOrderIdForSplit, setOriginalOrderIdForSplit] = useState<number | null>(null);
@@ -259,6 +269,18 @@ const POS: React.FC = () => {
           address: order.delivery_address || '',
           phone: order.delivery_phone || ''
         });
+      }
+
+      // Restore the discount the order was saved with so the cashier sees the
+      // same totals (and the dialog re-opens with the same mode/reason).
+      if ((order.discount || 0) > 0) {
+        setDiscountRaw(order.discount || 0);
+        setDiscountType((order.discount_type as 'amount' | 'percentage') || 'amount');
+        setDiscountReasonId(order.discount_reason_id);
+        setDiscountReasonText(order.discount_reason_text || '');
+      } else {
+        setDiscountRaw(0);
+        setDiscountReasonText('');
       }
 
       toast.info(`Orden ${order.order_number} ${isEditing ? 'lista para editar' : 'cargada'}`);
@@ -617,21 +639,38 @@ const POS: React.FC = () => {
     const isIVAResponsible = companyLiabilityId !== null && companyLiabilityId !== 117;
     const tax = 0; // Backend calculates the correct tax
 
+    // Resolve the absolute discount from the cashier's input. The backend
+    // does the same normalization on save, so this is purely for display.
+    let discountAmount = 0;
+    if (discountRaw > 0) {
+      if (discountType === 'percentage') {
+        const capped = Math.min(100, Math.max(0, discountRaw));
+        discountAmount = Math.round(subtotal * (capped / 100));
+      } else {
+        discountAmount = Math.min(discountRaw, subtotal);
+      }
+    }
+    const baseAfterDiscount = Math.max(0, subtotal - discountAmount);
+
+    // Service charge is computed over the discounted base, matching what the
+    // backend invoice math does (TaxExclusive + service).
     const serviceCharge = (serviceChargeEnabled && includeServiceCharge)
-      ? Math.round(subtotal * (serviceChargePercent / 100))
+      ? Math.round(baseAfterDiscount * (serviceChargePercent / 100))
       : 0;
 
-    const total = subtotal + serviceCharge;
+    const total = baseAfterDiscount + serviceCharge;
 
     return {
       subtotal,
       tax,
+      discountAmount,
+      baseAfterDiscount,
       serviceCharge,
       total,
       itemCount: orderItems.reduce((sum, item) => sum + item.quantity, 0),
       isIVAResponsible,
     };
-  }, [orderItems, companyLiabilityId, serviceChargeEnabled, includeServiceCharge, serviceChargePercent]);
+  }, [orderItems, companyLiabilityId, serviceChargeEnabled, includeServiceCharge, serviceChargePercent, discountRaw, discountType]);
 
   const clearOrder = useCallback(async (skipDelete = false) => {
     try {
@@ -658,6 +697,10 @@ const POS: React.FC = () => {
     setNeedsElectronicInvoice(false);
     setIncludeServiceCharge(false);
     setDeliveryInfo({ customerName: '', address: '', phone: '' });
+    setDiscountRaw(0);
+    setDiscountType('amount');
+    setDiscountReasonId(undefined);
+    setDiscountReasonText('');
     loadedOrderIdRef.current = null;
   }, [currentOrder, selectedTable]);
 
@@ -685,6 +728,10 @@ const POS: React.FC = () => {
         notes: '',
         source: 'pos',
         service_charge: orderTotals.serviceCharge,
+        discount: discountRaw,
+        discount_type: discountType,
+        discount_reason_id: discountReasonId,
+        discount_reason_text: discountReasonText || undefined,
         ...((deliveryInfo.customerName || deliveryInfo.address || deliveryInfo.phone) && {
           delivery_customer_name: deliveryInfo.customerName,
           delivery_address: deliveryInfo.address,
@@ -775,7 +822,11 @@ const POS: React.FC = () => {
         const itemsChanged = JSON.stringify(currentOrder.items) !== JSON.stringify(orderItems);
         const serviceChargeChanged = (currentOrder.service_charge || 0) !== orderTotals.serviceCharge;
 
-        if (itemsChanged || serviceChargeChanged) {
+        const discountChanged =
+          (currentOrder.discount || 0) !== orderTotals.discountAmount ||
+          (currentOrder.discount_reason_id || undefined) !== discountReasonId;
+
+        if (itemsChanged || serviceChargeChanged || discountChanged) {
           const orderData: CreateOrderData = {
             type: selectedOrderType?.code as 'dine_in' | 'takeout' | 'delivery' || 'takeout',
             order_type_id: selectedOrderType?.id as unknown as number,
@@ -786,6 +837,10 @@ const POS: React.FC = () => {
             notes: '',
             source: 'pos',
             service_charge: orderTotals.serviceCharge,
+            discount: discountRaw,
+            discount_type: discountType,
+            discount_reason_id: discountReasonId,
+            discount_reason_text: discountReasonText || undefined,
             ...((deliveryInfo.customerName || deliveryInfo.address || deliveryInfo.phone) && {
               delivery_customer_name: deliveryInfo.customerName,
               delivery_address: deliveryInfo.address,
@@ -809,6 +864,13 @@ const POS: React.FC = () => {
           notes: splitItems ? 'Cuenta dividida' : '',
           source: splitItems ? 'split' : 'pos', // 'split' prevents sending to kitchen
           service_charge: splitItems ? 0 : orderTotals.serviceCharge,
+          // Splits carry their own ad-hoc items and shouldn't inherit the global
+          // discount from the parent order (the discount stays on the cancelled
+          // parent for audit; each split is invoiced clean).
+          discount: splitItems ? 0 : discountRaw,
+          discount_type: splitItems ? 'amount' : discountType,
+          discount_reason_id: splitItems ? undefined : discountReasonId,
+          discount_reason_text: splitItems ? undefined : (discountReasonText || undefined),
           // Include delivery info if exists (check for actual data, not just order type)
           ...((deliveryInfo.customerName || deliveryInfo.address || deliveryInfo.phone) && {
             delivery_customer_name: deliveryInfo.customerName,
@@ -1210,9 +1272,14 @@ const POS: React.FC = () => {
           <Button
             startIcon={<DiscountIcon />}
             size="small"
-            variant="outlined"
+            variant={orderTotals.discountAmount > 0 ? 'contained' : 'outlined'}
+            color={orderTotals.discountAmount > 0 ? 'primary' : 'inherit'}
+            onClick={() => setDiscountDialogOpen(true)}
+            disabled={orderItems.length === 0}
           >
-            Descuento
+            {orderTotals.discountAmount > 0
+              ? `-$${orderTotals.discountAmount.toLocaleString('es-CO')}`
+              : 'Descuento'}
           </Button>
           <Button
             startIcon={
@@ -1316,6 +1383,16 @@ const POS: React.FC = () => {
             <Typography variant="body2">Subtotal:</Typography>
             <Typography variant="body2">${orderTotals.subtotal.toLocaleString('es-CO')}</Typography>
           </Box>
+          {orderTotals.discountAmount > 0 && (
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.25 }}>
+              <Typography variant="body2" color="error.main">
+                Descuento{discountType === 'percentage' ? ` (${Math.min(100, discountRaw)}%)` : ''}:
+              </Typography>
+              <Typography variant="body2" color="error.main">
+                -${orderTotals.discountAmount.toLocaleString('es-CO')}
+              </Typography>
+            </Box>
+          )}
           {orderTotals.isIVAResponsible && (
             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.25 }}>
               <Typography variant="body2">IVA (19%):</Typography>
@@ -1676,6 +1753,29 @@ const POS: React.FC = () => {
           setDeliveryDialogOpen(false);
         }}
         initialData={deliveryInfo}
+      />
+
+      {/* Discount Dialog */}
+      <DiscountDialog
+        open={discountDialogOpen}
+        subtotal={orderTotals.subtotal}
+        initialAmount={discountRaw}
+        initialType={discountType}
+        initialReasonId={discountReasonId}
+        initialReasonText={discountReasonText}
+        onClose={() => setDiscountDialogOpen(false)}
+        onApply={({ amount, type, reasonId, reasonText }) => {
+          setDiscountRaw(amount);
+          setDiscountType(type);
+          setDiscountReasonId(reasonId);
+          setDiscountReasonText(reasonText || '');
+          setDiscountDialogOpen(false);
+        }}
+        onClear={() => {
+          setDiscountRaw(0);
+          setDiscountReasonText('');
+          setDiscountDialogOpen(false);
+        }}
       />
 
       {/* Split Bill Dialog */}
