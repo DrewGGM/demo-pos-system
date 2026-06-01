@@ -1383,7 +1383,7 @@ const POS: React.FC = () => {
           )}
 
           {/* Action Buttons */}
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75, mt: 0.5 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75, mt: 1.25 }}>
             {/* Row 1: Management Actions */}
             <Box sx={{ display: 'flex', gap: 0.75 }}>
               <Button
