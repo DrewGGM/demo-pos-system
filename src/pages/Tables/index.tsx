@@ -790,7 +790,8 @@ const Tables: React.FC = () => {
         draggable={editLayoutMode}
         onDragStart={() => table.id && handleDragStart(table.id)}
         sx={{
-          aspectRatio: '1 / 1',
+          height: '100%',
+          width: '100%',
           backgroundColor: style.background,
           border: `2px solid ${style.color}40`,
           borderRadius: 2,
@@ -822,7 +823,8 @@ const Tables: React.FC = () => {
         onDragLeave={handleDragLeave}
         onDrop={(e) => handleDrop(e, row, col)}
         sx={{
-          aspectRatio: '1 / 1',
+          height: '100%',
+          width: '100%',
           border: editLayoutMode
             ? (isOver ? '2px dashed #1976d2' : '2px dashed #bdbdbd')
             : '2px dashed transparent',
@@ -874,7 +876,8 @@ const Tables: React.FC = () => {
                 : `calc(${100 / displayColumns}% - 8px)`,
               mx: '4px',
               mb: '8px',
-              maxHeight: 140,
+              height: 140,
+              overflow: 'hidden',
             }}
           >
             {table ? renderTableCard(table, true) : renderEmptyCell(r, c)}
@@ -960,6 +963,8 @@ const Tables: React.FC = () => {
                         sx={{
                           flex: `0 0 calc(${100 / displayColumns}% - 8px)`,
                           maxWidth: `calc(${100 / displayColumns}% - 8px)`,
+                          height: 140,
+                          overflow: 'hidden',
                         }}
                       >
                         {renderTableCard(table, false)}
