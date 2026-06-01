@@ -50,22 +50,22 @@ const App: React.FC = () => {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/pos" element={<POS />} />
           <Route path="/orders" element={<Orders />} />
-          <Route path="/products" element={<Products />} />
+          <Route path="/products" element={<ProtectedRoute requiredPermissions={['products.manage']}><Products /></ProtectedRoute>} />
           <Route path="/sales" element={<Sales />} />
-          <Route path="/reports" element={<Reports />} />
+          <Route path="/reports" element={<ProtectedRoute requiredPermissions={['reports.view']}><Reports /></ProtectedRoute>} />
           <Route path="/cash-register" element={<CashRegister />} />
           <Route path="/cash-register-history" element={<CashRegisterHistory />} />
           <Route path="/tables" element={<Tables />} />
           <Route path="/customers" element={<Customers />} />
-          <Route path="/employees" element={<Employees />} />
+          <Route path="/employees" element={<ProtectedRoute requiredPermissions={['employees.manage']}><Employees /></ProtectedRoute>} />
           <Route path="/inventory" element={<Inventory />} />
           <Route path="/ingredients" element={<Ingredients />} />
           <Route path="/combos" element={<Combos />} />
           <Route path="/profile" element={<Profile />} />
-          <Route path="/profit-report" element={<ProfitReport />} />
+          <Route path="/profit-report" element={<ProtectedRoute requiredPermissions={['reports.profit.view']}><ProfitReport /></ProtectedRoute>} />
           <Route path="/accounting" element={<Accounting />} />
-          <Route path="/settings/*" element={<Settings />} />
-          <Route path="/permissions" element={<Permissions />} />
+          <Route path="/settings/*" element={<ProtectedRoute requiredPermissions={['settings.access']}><Settings /></ProtectedRoute>} />
+          <Route path="/permissions" element={<ProtectedRoute requiredPermissions={['employees.manage']}><Permissions /></ProtectedRoute>} />
         </Route>
 
         <Route path="/" element={<Navigate to={isAuthenticated ? (cashRegisterId ? "/dashboard" : "/cash-register") : "/login"} />} />

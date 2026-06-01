@@ -53,7 +53,7 @@ import {
   Email as EmailIcon,
   Support as SupportIcon,
 } from '@mui/icons-material';
-import { useAuth, useWebSocket, useDIANMode, useNotifications } from '../hooks';
+import { useAuth, useWebSocket, useDIANMode, useNotifications, usePermissions } from '../hooks';
 import { Warning as WarningIcon, CheckCircle as CheckCircleIcon, Error as ErrorIcon, Info as InfoIcon } from '@mui/icons-material';
 import { wailsConfigService } from '../services/wailsConfigService';
 import { wailsLicenseService } from '../services/wailsLicenseService';
@@ -79,6 +79,9 @@ interface MenuItem {
   icon: React.ReactElement;
   path: string;
   roles?: string[];
+  // Permission code from the catalog. When set, the item only shows if the
+  // current user has the permission. Takes precedence over `roles`.
+  permission?: string;
   children?: MenuItem[];
   moduleKey?: keyof ModuleVisibility; // Key to check in module visibility config
   licenseFeature?: string; // License feature key required to show this item
@@ -128,7 +131,7 @@ const menuItems: MenuItem[] = [
     text: 'Productos',
     icon: <InventoryIcon />,
     path: '/products',
-    roles: ['admin', 'manager'],
+    permission: 'products.manage',
   },
   {
     text: 'Inventario',
@@ -165,26 +168,26 @@ const menuItems: MenuItem[] = [
     text: 'Empleados',
     icon: <GroupIcon />,
     path: '/employees',
-    roles: ['admin'],
+    permission: 'employees.manage',
   },
   {
     text: 'Permisos',
     icon: <SecurityIcon />,
     path: '/permissions',
-    roles: ['admin'],
+    permission: 'employees.manage',
   },
   {
     text: 'Reportes',
     icon: <ReportIcon />,
     path: '/reports',
-    roles: ['admin', 'manager'],
+    permission: 'reports.view',
     moduleKey: 'enable_reports_module',
   },
   {
     text: 'Costos y Ganancias',
     icon: <ProfitIcon />,
     path: '/profit-report',
-    roles: ['admin', 'manager'],
+    permission: 'reports.profit.view',
     moduleKey: 'enable_profit_module',
     licenseFeature: 'profit_report',
   },
@@ -199,7 +202,7 @@ const menuItems: MenuItem[] = [
     text: 'Configuración',
     icon: <SettingsIcon />,
     path: '/settings',
-    roles: ['admin'],
+    permission: 'settings.access',
   },
 ];
 
@@ -207,6 +210,7 @@ const MainLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout, cashRegisterId } = useAuth();
+  const { can } = usePermissions();
   const { isConnected } = useWebSocket();
   const { isDIANMode, toggleDIANMode, isElectronicInvoicingEnabled, dianApiUrl, dianConfig } = useDIANMode();
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
@@ -353,6 +357,12 @@ const MainLayout: React.FC = () => {
   };
 
   const hasPermission = (item: MenuItem): boolean => {
+    // Granular permission check wins when set — the matrix is the single
+    // source of truth. Falls back to the legacy role list for items that
+    // haven't been migrated yet.
+    if (item.permission) {
+      return can(item.permission);
+    }
     if (!item.roles) return true;
     if (!user) return false;
     return item.roles.includes(user.role);

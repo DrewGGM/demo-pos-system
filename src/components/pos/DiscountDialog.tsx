@@ -13,6 +13,7 @@ import {
   Typography,
   InputAdornment,
   Alert,
+  Chip,
 } from '@mui/material';
 import { DiscountReason } from '../../types/models';
 import { wailsDiscountService } from '../../services/wailsDiscountService';
@@ -150,11 +151,31 @@ const DiscountDialog: React.FC<DiscountDialogProps> = ({
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
-      <DialogTitle>Aplicar Descuento</DialogTitle>
+      <DialogTitle sx={{ pb: 1 }}>Aplicar Descuento</DialogTitle>
       <DialogContent>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Subtotal de la orden: <b>${subtotal.toLocaleString('es-CO')}</b>
-        </Typography>
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            mb: 2,
+          }}
+        >
+          <Typography variant="body2" color="text.secondary">
+            Subtotal de la orden:&nbsp;
+            <Box component="span" sx={{ fontWeight: 700, color: 'text.primary' }}>
+              ${subtotal.toLocaleString('es-CO')}
+            </Box>
+          </Typography>
+          {maxPercent > 0 && (
+            <Chip
+              label={`Máx ${maxPercent}%`}
+              size="small"
+              color="warning"
+              variant="outlined"
+            />
+          )}
+        </Box>
 
         <ToggleButtonGroup
           value={type}
@@ -175,6 +196,9 @@ const DiscountDialog: React.FC<DiscountDialogProps> = ({
           label={type === 'percentage' ? 'Porcentaje' : 'Monto'}
           value={amountStr}
           onChange={(e) => setAmountStr(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') handleApply();
+          }}
           InputProps={{
             startAdornment:
               type === 'amount' ? (
@@ -186,17 +210,74 @@ const DiscountDialog: React.FC<DiscountDialogProps> = ({
               ) : undefined,
           }}
           inputProps={{ min: 0, step: type === 'percentage' ? 1 : 100 }}
-          sx={{ mb: 2 }}
+          sx={{ mb: 1 }}
         />
 
+        {/* Quick % shortcuts. Visible only when in percentage mode; the
+            cashier's cap (maxPercent) hides options above the limit. */}
+        {type === 'percentage' && (
+          <Box sx={{ display: 'flex', gap: 0.5, mb: 2, flexWrap: 'wrap' }}>
+            {[5, 10, 15, 20, 30, 50].map((pct) => {
+              if (maxPercent > 0 && pct > maxPercent) return null;
+              return (
+                <Chip
+                  key={pct}
+                  label={`${pct}%`}
+                  size="small"
+                  onClick={() => setAmountStr(String(pct))}
+                  variant={amountStr === String(pct) ? 'filled' : 'outlined'}
+                  color={amountStr === String(pct) ? 'primary' : 'default'}
+                  clickable
+                />
+              );
+            })}
+          </Box>
+        )}
+
         {previewAmount > 0 && (
-          <Box sx={{ mb: 2, p: 1, bgcolor: 'action.hover', borderRadius: 1 }}>
-            <Typography variant="caption" color="text.secondary">
-              Se descontará:
-            </Typography>
-            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-              -${previewAmount.toLocaleString('es-CO')}
-            </Typography>
+          <Box
+            sx={{
+              mb: 2,
+              p: 1.25,
+              bgcolor: 'success.light',
+              color: 'success.contrastText',
+              borderRadius: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 0.25,
+            }}
+          >
+            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+              <Typography variant="caption">Subtotal</Typography>
+              <Typography variant="caption">
+                ${subtotal.toLocaleString('es-CO')}
+              </Typography>
+            </Box>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+              <Typography variant="caption">
+                Descuento{type === 'percentage' ? ` (${Math.min(100, Number(amountStr || 0))}%)` : ''}
+              </Typography>
+              <Typography variant="caption" sx={{ fontWeight: 700 }}>
+                -${previewAmount.toLocaleString('es-CO')}
+              </Typography>
+            </Box>
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'baseline',
+                borderTop: '1px solid rgba(255,255,255,0.4)',
+                pt: 0.5,
+                mt: 0.25,
+              }}
+            >
+              <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                Total
+              </Typography>
+              <Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1 }}>
+                ${(subtotal - previewAmount).toLocaleString('es-CO')}
+              </Typography>
+            </Box>
           </Box>
         )}
 

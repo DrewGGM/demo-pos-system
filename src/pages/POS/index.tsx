@@ -72,6 +72,7 @@ const POS: React.FC = () => {
   const canApplyDiscount = canPerm('pos.discount.apply');
   // 0 means "no cap" by convention (see seedPermissions).
   const maxDiscountPercent = permValue('pos.discount.max_percent');
+  const canCancelOrder = canPerm('pos.order.cancel');
   const { isDIANMode, isElectronicInvoicingEnabled } = useDIANMode();
   const location = useLocation();
   const [searchParams] = useSearchParams();
@@ -1338,7 +1339,8 @@ const POS: React.FC = () => {
                 }}
                 size="small"
                 color="error"
-                title="Vaciar carrito"
+                title={canCancelOrder ? 'Vaciar carrito' : 'Tu rol no puede cancelar órdenes'}
+                disabled={!canCancelOrder}
               >
                 <ClearIcon />
               </IconButton>
@@ -1475,7 +1477,8 @@ const POS: React.FC = () => {
                 color="error"
                 startIcon={<ClearIcon />}
                 onClick={() => clearOrder(false)}
-                disabled={orderItems.length === 0}
+                disabled={orderItems.length === 0 || !canCancelOrder}
+                title={!canCancelOrder ? 'Tu rol no puede cancelar órdenes' : undefined}
               >
                 Cancelar
               </Button>

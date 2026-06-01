@@ -11,8 +11,36 @@ import {
   Tooltip,
   IconButton,
   Divider,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Collapse,
+  InputAdornment,
+  Avatar,
+  Stack,
 } from '@mui/material';
-import { Refresh as RefreshIcon, Lock as LockIcon } from '@mui/icons-material';
+import {
+  Refresh as RefreshIcon,
+  Lock as LockIcon,
+  Search as SearchIcon,
+  ExpandMore as ExpandMoreIcon,
+  ExpandLess as ExpandLessIcon,
+  Clear as ClearIcon,
+  ShoppingCart as POSIcon,
+  Assessment as ReportsIcon,
+  Settings as SettingsIcon,
+  Category as CatalogIcon,
+  AdminPanelSettings as AdminIcon,
+  Help as HelpIcon,
+  AdminPanelSettings as AdminPersonIcon,
+  PointOfSale as CashierIcon,
+  Restaurant as WaiterIcon,
+  SoupKitchen as KitchenIcon,
+  Person as DefaultRoleIcon,
+} from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import {
   wailsPermissionService,
@@ -20,12 +48,52 @@ import {
 } from '../../services/wailsPermissionService';
 import { usePermissions } from '../../hooks';
 
-// PermissionsAdmin renders a category-grouped table where each row is a
-// permission and each column is a role. Cells render a Switch for boolean
-// permissions and a TextField for numeric ones.
+// PermissionsAdmin renders the role × permission matrix as a category-grouped,
+// searchable, collapsible MUI table. Edits are saved on the fly (no global
+// "save" button) so the admin sees per-cell feedback.
 //
-// Edits are sent to the backend immediately (no global "save" button) so the
-// admin sees feedback per change and can recover if one cell fails.
+// Layout choices:
+//   - Categories are collapsible Accordion-like panels.
+//   - Permission name + code + description sit in the left column (sticky).
+//   - One column per role, with a colored avatar header for quick scanning.
+//   - Booleans → Switch. Numbers → numeric TextField (commits onBlur).
+//   - A small "default" chip marks cells that fall back to catalog default.
+
+const CATEGORY_META: Record<
+  string,
+  { label: string; icon: React.ReactElement; color: string }
+> = {
+  pos: { label: 'Punto de Venta', icon: <POSIcon />, color: '#1976d2' },
+  reports: { label: 'Reportes', icon: <ReportsIcon />, color: '#9c27b0' },
+  settings: { label: 'Configuración', icon: <SettingsIcon />, color: '#ed6c02' },
+  catalog: { label: 'Catálogo', icon: <CatalogIcon />, color: '#2e7d32' },
+  admin: { label: 'Administración', icon: <AdminIcon />, color: '#d32f2f' },
+};
+
+function categoryMeta(cat: string) {
+  return (
+    CATEGORY_META[cat] || {
+      label: cat,
+      icon: <HelpIcon />,
+      color: '#607d8b',
+    }
+  );
+}
+
+const ROLE_META: Record<
+  string,
+  { color: string; icon: React.ReactElement }
+> = {
+  admin: { color: '#d32f2f', icon: <AdminPersonIcon /> },
+  cashier: { color: '#1976d2', icon: <CashierIcon /> },
+  waiter: { color: '#2e7d32', icon: <WaiterIcon /> },
+  kitchen: { color: '#ed6c02', icon: <KitchenIcon /> },
+};
+
+function roleMeta(role: string) {
+  return ROLE_META[role] || { color: '#607d8b', icon: <DefaultRoleIcon /> };
+}
+
 const PermissionsAdmin: React.FC = () => {
   const { can } = usePermissions();
   const canManage = can('employees.manage'); // gate the page itself
@@ -33,6 +101,8 @@ const PermissionsAdmin: React.FC = () => {
   const [rows, setRows] = useState<RoleMatrixRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingKey, setSavingKey] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -50,8 +120,8 @@ const PermissionsAdmin: React.FC = () => {
     void load();
   }, [load]);
 
-  // Group rows by (category → permission code) so we render one row per code
-  // with one cell per role.
+  // Group rows by (category → permission code). Each group has one row per
+  // permission, and each row has a byRole map for cell lookup.
   const grouped = useMemo(() => {
     type PermRow = {
       code: string;
@@ -64,8 +134,14 @@ const PermissionsAdmin: React.FC = () => {
     };
     const cats: Record<string, PermRow[]> = {};
     const seen: Record<string, PermRow> = {};
+    const q = search.trim().toLowerCase();
 
     for (const r of rows) {
+      // Filter on search across permission code/name/description.
+      if (q) {
+        const hay = `${r.code} ${r.name} ${r.description}`.toLowerCase();
+        if (!hay.includes(q)) continue;
+      }
       const key = r.code;
       if (!seen[key]) {
         const pr: PermRow = {
@@ -84,17 +160,15 @@ const PermissionsAdmin: React.FC = () => {
       seen[key].byRole[r.role] = r;
     }
 
-    // Sort permissions inside each category by displayOrder
     for (const cat of Object.keys(cats)) {
       cats[cat].sort((a, b) => a.displayOrder - b.displayOrder);
     }
     return cats;
-  }, [rows]);
+  }, [rows, search]);
 
   const roles = useMemo(() => {
     const s = new Set<string>();
     rows.forEach((r) => s.add(r.role));
-    // Sort with admin first, then alpha.
     return Array.from(s).sort((a, b) => {
       if (a === 'admin') return -1;
       if (b === 'admin') return 1;
@@ -107,7 +181,6 @@ const PermissionsAdmin: React.FC = () => {
     setSavingKey(key);
     try {
       await wailsPermissionService.setRolePermission(role, code, value);
-      // Optimistic update
       setRows((prev) =>
         prev.map((r) =>
           r.role === role && r.code === code
@@ -115,7 +188,7 @@ const PermissionsAdmin: React.FC = () => {
             : r,
         ),
       );
-      toast.success(`${code} actualizado para ${role}`, { autoClose: 1500 });
+      toast.success(`Actualizado`, { autoClose: 1200 });
     } catch (err: any) {
       toast.error(err?.message || 'No se pudo guardar el permiso');
     } finally {
@@ -126,11 +199,7 @@ const PermissionsAdmin: React.FC = () => {
   if (!canManage) {
     return (
       <Box sx={{ p: 3 }}>
-        <Alert
-          severity="warning"
-          icon={<LockIcon />}
-          sx={{ maxWidth: 600 }}
-        >
+        <Alert severity="warning" icon={<LockIcon />} sx={{ maxWidth: 600 }}>
           Tu rol no tiene el permiso <code>employees.manage</code>, requerido para
           administrar permisos.
         </Alert>
@@ -146,12 +215,39 @@ const PermissionsAdmin: React.FC = () => {
     );
   }
 
+  const categoriesOrdered = Object.keys(grouped).sort((a, b) => {
+    const order = ['pos', 'reports', 'catalog', 'settings', 'admin'];
+    const ai = order.indexOf(a);
+    const bi = order.indexOf(b);
+    if (ai !== -1 && bi !== -1) return ai - bi;
+    if (ai !== -1) return -1;
+    if (bi !== -1) return 1;
+    return a.localeCompare(b);
+  });
+
   return (
-    <Box sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-        <Typography variant="h5" sx={{ flex: 1, fontWeight: 700 }}>
-          Permisos por Rol
-        </Typography>
+    <Box sx={{ p: { xs: 2, md: 3 } }}>
+      {/* Header */}
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 2,
+          mb: 1,
+        }}
+      >
+        <Avatar sx={{ bgcolor: 'primary.main', width: 44, height: 44 }}>
+          <AdminIcon />
+        </Avatar>
+        <Box sx={{ flex: 1, minWidth: 220 }}>
+          <Typography variant="h5" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
+            Permisos por Rol
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Configura qué puede hacer cada rol. Los cambios se aplican al instante.
+          </Typography>
+        </Box>
         <Tooltip title="Recargar">
           <IconButton onClick={load}>
             <RefreshIcon />
@@ -159,136 +255,270 @@ const PermissionsAdmin: React.FC = () => {
         </Tooltip>
       </Box>
 
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Define qué puede hacer cada rol. Los cambios se aplican inmediatamente y
-        la nueva configuración es visible al siguiente inicio de sesión del
-        empleado afectado.
-      </Typography>
+      {/* Search */}
+      <TextField
+        fullWidth
+        size="small"
+        placeholder="Buscar por nombre, código o descripción…"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        InputProps={{
+          startAdornment: (
+            <InputAdornment position="start">
+              <SearchIcon fontSize="small" />
+            </InputAdornment>
+          ),
+          endAdornment: search && (
+            <InputAdornment position="end">
+              <IconButton size="small" onClick={() => setSearch('')}>
+                <ClearIcon fontSize="small" />
+              </IconButton>
+            </InputAdornment>
+          ),
+        }}
+        sx={{ mb: 3, maxWidth: 600 }}
+      />
 
-      {Object.keys(grouped).sort().map((category) => (
-        <Paper key={category} sx={{ mb: 3, overflow: 'hidden' }}>
-          <Box sx={{ px: 2, py: 1.5, bgcolor: 'primary.main', color: 'white' }}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 700, textTransform: 'capitalize' }}>
-              {category}
-            </Typography>
-          </Box>
-          <Box component="table" sx={{ width: '100%', borderCollapse: 'collapse' }}>
-            <Box component="thead">
-              <Box component="tr" sx={{ bgcolor: 'action.hover' }}>
-                <Box component="th" sx={{ p: 1.5, textAlign: 'left', minWidth: 280 }}>
-                  Permiso
-                </Box>
-                {roles.map((role) => (
-                  <Box
-                    key={role}
-                    component="th"
-                    sx={{ p: 1.5, textAlign: 'center', textTransform: 'capitalize', minWidth: 120 }}
-                  >
-                    {role}
-                  </Box>
-                ))}
+      {/* Empty state when search returns nothing */}
+      {categoriesOrdered.length === 0 && (
+        <Alert severity="info">
+          No hay permisos que coincidan con "<b>{search}</b>".
+        </Alert>
+      )}
+
+      {/* Categories */}
+      <Stack spacing={2}>
+        {categoriesOrdered.map((category) => {
+          const meta = categoryMeta(category);
+          const isCollapsed = collapsed[category];
+          return (
+            <Paper key={category} elevation={1} sx={{ overflow: 'hidden' }}>
+              {/* Category header */}
+              <Box
+                onClick={() =>
+                  setCollapsed((s) => ({ ...s, [category]: !s[category] }))
+                }
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1.5,
+                  px: 2,
+                  py: 1.5,
+                  bgcolor: meta.color,
+                  color: 'white',
+                  cursor: 'pointer',
+                  userSelect: 'none',
+                  '&:hover': { filter: 'brightness(1.05)' },
+                }}
+              >
+                <Avatar sx={{ bgcolor: 'rgba(255,255,255,0.2)', width: 32, height: 32 }}>
+                  {meta.icon}
+                </Avatar>
+                <Typography variant="subtitle1" sx={{ fontWeight: 700, flex: 1 }}>
+                  {meta.label}
+                </Typography>
+                <Chip
+                  label={`${grouped[category].length} permiso${grouped[category].length === 1 ? '' : 's'}`}
+                  size="small"
+                  sx={{
+                    bgcolor: 'rgba(255,255,255,0.25)',
+                    color: 'white',
+                    fontWeight: 600,
+                  }}
+                />
+                {isCollapsed ? <ExpandMoreIcon /> : <ExpandLessIcon />}
               </Box>
-            </Box>
-            <Box component="tbody">
-              {grouped[category].map((perm) => (
-                <Box
-                  key={perm.code}
-                  component="tr"
-                  sx={{ borderTop: '1px solid', borderColor: 'divider' }}
-                >
-                  <Box component="td" sx={{ p: 1.5, verticalAlign: 'top' }}>
-                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                      {perm.name}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      <code>{perm.code}</code>
-                    </Typography>
-                    {perm.description && (
-                      <Typography
-                        variant="caption"
-                        color="text.secondary"
-                        sx={{ display: 'block', mt: 0.5 }}
-                      >
-                        {perm.description}
-                      </Typography>
-                    )}
-                  </Box>
-                  {roles.map((role) => {
-                    const cell = perm.byRole[role];
-                    const value = cell?.value ?? perm.defaultValue;
-                    const hasOverride = cell?.has_override === true;
-                    const key = `${role}:${perm.code}`;
-                    const saving = savingKey === key;
-                    return (
-                      <Box
-                        key={role}
-                        component="td"
-                        sx={{ p: 1.5, textAlign: 'center', verticalAlign: 'middle' }}
-                      >
-                        {perm.type === 'boolean' ? (
-                          <Switch
-                            size="small"
-                            checked={value === 'true'}
-                            disabled={saving}
-                            onChange={(e) =>
-                              handleChange(role, perm.code, e.target.checked ? 'true' : 'false')
-                            }
-                          />
-                        ) : (
-                          <TextField
-                            type="number"
-                            size="small"
-                            value={value}
-                            disabled={saving}
-                            onBlur={(e) => {
-                              const v = e.target.value || '0';
-                              if (v !== (cell?.value ?? perm.defaultValue)) {
-                                void handleChange(role, perm.code, v);
-                              }
-                            }}
-                            onChange={(e) => {
-                              // Optimistic local update only; commit on blur.
-                              setRows((prev) =>
-                                prev.map((r) =>
-                                  r.role === role && r.code === perm.code
-                                    ? { ...r, value: e.target.value }
-                                    : r,
-                                ),
-                              );
-                            }}
-                            inputProps={{ style: { textAlign: 'center' } }}
-                            sx={{ width: 80 }}
-                          />
-                        )}
-                        {!hasOverride && (
-                          <Tooltip title="Usando valor por defecto del catálogo">
-                            <Chip
-                              label="default"
-                              size="small"
-                              sx={{
-                                ml: 0.5,
-                                height: 16,
-                                fontSize: 9,
-                                opacity: 0.6,
-                              }}
-                            />
-                          </Tooltip>
-                        )}
-                      </Box>
-                    );
-                  })}
-                </Box>
-              ))}
-            </Box>
-          </Box>
-        </Paper>
-      ))}
 
-      <Divider sx={{ my: 2 }} />
+              {/* Category body */}
+              <Collapse in={!isCollapsed}>
+                <TableContainer>
+                  <Table size="small" stickyHeader>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell
+                          sx={{
+                            minWidth: 280,
+                            bgcolor: 'background.paper',
+                            fontWeight: 700,
+                          }}
+                        >
+                          Permiso
+                        </TableCell>
+                        {roles.map((role) => {
+                          const rm = roleMeta(role);
+                          return (
+                            <TableCell
+                              key={role}
+                              align="center"
+                              sx={{
+                                minWidth: 130,
+                                bgcolor: 'background.paper',
+                                fontWeight: 700,
+                                textTransform: 'capitalize',
+                              }}
+                            >
+                              <Stack
+                                direction="row"
+                                spacing={0.5}
+                                alignItems="center"
+                                justifyContent="center"
+                              >
+                                <Avatar
+                                  sx={{
+                                    bgcolor: rm.color,
+                                    width: 22,
+                                    height: 22,
+                                    '& svg': { fontSize: 14 },
+                                  }}
+                                >
+                                  {rm.icon}
+                                </Avatar>
+                                <span>{role}</span>
+                              </Stack>
+                            </TableCell>
+                          );
+                        })}
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {grouped[category].map((perm) => (
+                        <TableRow key={perm.code} hover>
+                          <TableCell sx={{ verticalAlign: 'top', py: 1.25 }}>
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                              {perm.name}
+                            </Typography>
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                              sx={{ display: 'block', fontFamily: 'monospace' }}
+                            >
+                              {perm.code}
+                            </Typography>
+                            {perm.description && (
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                                sx={{ display: 'block', mt: 0.5 }}
+                              >
+                                {perm.description}
+                              </Typography>
+                            )}
+                          </TableCell>
+                          {roles.map((role) => {
+                            const cell = perm.byRole[role];
+                            const value = cell?.value ?? perm.defaultValue;
+                            const hasOverride = cell?.has_override === true;
+                            const key = `${role}:${perm.code}`;
+                            const saving = savingKey === key;
+                            return (
+                              <TableCell
+                                key={role}
+                                align="center"
+                                sx={{ verticalAlign: 'middle', py: 1 }}
+                              >
+                                {perm.type === 'boolean' ? (
+                                  <Box
+                                    sx={{
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      gap: 0.5,
+                                    }}
+                                  >
+                                    <Switch
+                                      size="small"
+                                      checked={value === 'true'}
+                                      disabled={saving}
+                                      onChange={(e) =>
+                                        handleChange(
+                                          role,
+                                          perm.code,
+                                          e.target.checked ? 'true' : 'false',
+                                        )
+                                      }
+                                    />
+                                    {!hasOverride && (
+                                      <Tooltip title="Valor por defecto">
+                                        <Chip
+                                          label="def"
+                                          size="small"
+                                          sx={{
+                                            height: 16,
+                                            fontSize: 9,
+                                            opacity: 0.6,
+                                          }}
+                                        />
+                                      </Tooltip>
+                                    )}
+                                  </Box>
+                                ) : (
+                                  <Box
+                                    sx={{
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      gap: 0.5,
+                                    }}
+                                  >
+                                    <TextField
+                                      type="number"
+                                      size="small"
+                                      value={value}
+                                      disabled={saving}
+                                      onBlur={(e) => {
+                                        const v = e.target.value || '0';
+                                        if (v !== (cell?.value ?? perm.defaultValue)) {
+                                          void handleChange(role, perm.code, v);
+                                        }
+                                      }}
+                                      onChange={(e) => {
+                                        // Optimistic local update only; commit on blur.
+                                        setRows((prev) =>
+                                          prev.map((r) =>
+                                            r.role === role && r.code === perm.code
+                                              ? { ...r, value: e.target.value }
+                                              : r,
+                                          ),
+                                        );
+                                      }}
+                                      inputProps={{
+                                        style: { textAlign: 'center' },
+                                      }}
+                                      sx={{ width: 72 }}
+                                    />
+                                    {!hasOverride && (
+                                      <Tooltip title="Valor por defecto">
+                                        <Chip
+                                          label="def"
+                                          size="small"
+                                          sx={{
+                                            height: 16,
+                                            fontSize: 9,
+                                            opacity: 0.6,
+                                          }}
+                                        />
+                                      </Tooltip>
+                                    )}
+                                  </Box>
+                                )}
+                              </TableCell>
+                            );
+                          })}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Collapse>
+            </Paper>
+          );
+        })}
+      </Stack>
+
+      <Divider sx={{ my: 3 }} />
       <Alert severity="info" variant="outlined">
-        Los cambios en permisos son auditados internamente. Si un empleado tiene
-        sesión activa, deberá cerrar sesión y volver a entrar para ver el nuevo
-        permiso reflejado en su interfaz.
+        Los cambios se aplican al instante. Un empleado con sesión activa verá
+        el nuevo permiso reflejado al cerrar sesión y volver a entrar.
       </Alert>
     </Box>
   );
