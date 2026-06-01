@@ -1171,7 +1171,25 @@ const POS: React.FC = () => {
         </Box>
 
         {/* Action Buttons */}
-        <Box sx={{ p: 1, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+        <Box
+          sx={{
+            px: 1,
+            py: 0.75,
+            display: 'flex',
+            gap: 0.5,
+            flexWrap: 'wrap',
+            '& .MuiButton-root': {
+              minHeight: 28,
+              py: 0.25,
+              px: 1,
+              fontSize: '0.75rem',
+              textTransform: 'none',
+            },
+            '& .MuiButton-startIcon': { mr: 0.5, '& > svg': { fontSize: 16 } },
+            '& .MuiIconButton-root': { p: 0.5 },
+            '& .MuiIconButton-root svg': { fontSize: 18 },
+          }}
+        >
           <Button
             startIcon={<TableIcon />}
             onClick={() => setTableDialogOpen(true)}
