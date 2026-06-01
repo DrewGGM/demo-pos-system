@@ -106,7 +106,7 @@ const Products: React.FC = () => {
     is_active: true,
     has_variable_price: false,
     track_inventory: true,
-    tax_type_id: 1, // IVA 19% by default
+    tax_type_id: 5, // IVA 0% (Exento) por defecto — en restaurantes la mayoría de items no aplican IVA
     unit_measure_id: 796, // Porción by default (appropriate for restaurants)
   });
   const [stockAdjustment, setStockAdjustment] = useState({
@@ -224,7 +224,7 @@ const Products: React.FC = () => {
         active: true,
         has_variable_price: false, // Variable price disabled by default
         track_inventory: true, // Track inventory by default
-        tax_type_id: 1, // IVA 19% by default
+        tax_type_id: 5, // IVA 0% (Exento) por defecto — en restaurantes la mayoría no aplican IVA
         unit_measure_id: 796, // Porción by default
       });
       setImagePreview(null);
@@ -581,7 +581,13 @@ const Products: React.FC = () => {
               height: '100%',
               display: 'flex',
               flexDirection: 'column',
-              border: product.stock <= 0 ? '2px solid #d32f2f' : undefined,
+              // Only flag empty stock in red when the product actually tracks
+              // inventory — items like services, drinks unlimited from a tap,
+              // or items the kitchen makes on demand should never look "sold out".
+              border:
+                product.track_inventory !== false && product.stock <= 0
+                  ? '2px solid #d32f2f'
+                  : undefined,
             }}
           >
             {product.image ? (
@@ -632,11 +638,26 @@ const Products: React.FC = () => {
                 <Typography variant="h6" color="primary">
                   ${product.price.toLocaleString('es-CO')}
                 </Typography>
-                <Chip
-                  size="small"
-                  label={`Stock: ${product.stock}`}
-                  color={product.stock <= 0 ? 'error' : product.stock <= (product.min_stock || 0) ? 'warning' : 'default'}
-                />
+                {product.track_inventory !== false ? (
+                  <Chip
+                    size="small"
+                    label={`Stock: ${product.stock}`}
+                    color={
+                      product.stock <= 0
+                        ? 'error'
+                        : product.stock <= (product.min_stock || 0)
+                        ? 'warning'
+                        : 'default'
+                    }
+                  />
+                ) : (
+                  <Chip
+                    size="small"
+                    label="Sin control de stock"
+                    variant="outlined"
+                    color="info"
+                  />
+                )}
               </Box>
             </CardContent>
             <CardActions sx={{ justifyContent: 'space-between', px: 2, pb: 2 }}>
@@ -958,13 +979,13 @@ const Products: React.FC = () => {
               <FormControl fullWidth>
                 <InputLabel>Tipo de IVA</InputLabel>
                 <Select
-                  value={productForm.tax_type_id || 1}
+                  value={productForm.tax_type_id || 5}
                   onChange={(e) => setProductForm({ ...productForm, tax_type_id: Number(e.target.value) })}
                   label="Tipo de IVA"
                 >
-                  <MenuItem value={1}>IVA 19%</MenuItem>
                   <MenuItem value={5}>IVA 0% (Exento)</MenuItem>
                   <MenuItem value={6}>IVA 5%</MenuItem>
+                  <MenuItem value={1}>IVA 19%</MenuItem>
                 </Select>
               </FormControl>
             </Grid>
