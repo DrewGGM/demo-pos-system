@@ -75,18 +75,24 @@ const OrderList: React.FC<OrderListProps> = ({
             {/* Row 2: Quantity controls + unit price + actions */}
             <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', gap: 0.5 }}>
               {editable && (
-                <ButtonGroup size="small" sx={{ '& .MuiButton-root': { minWidth: 28, px: 0.5 } }}>
+                <ButtonGroup
+                  size="small"
+                  sx={{
+                    height: 24,
+                    '& .MuiButton-root': { minWidth: 24, px: 0.25, py: 0, height: 24, lineHeight: 1 },
+                  }}
+                >
                   <Button
                     onClick={() => handleQuantityChange(item, -1)}
                     disabled={item.quantity <= 1}
                   >
-                    <RemoveIcon sx={{ fontSize: 16 }} />
+                    <RemoveIcon sx={{ fontSize: 14 }} />
                   </Button>
-                  <Button disabled sx={{ minWidth: '32px !important', fontSize: '0.8rem' }}>
+                  <Button disabled sx={{ minWidth: '28px !important', fontSize: '0.75rem' }}>
                     {item.quantity}
                   </Button>
                   <Button onClick={() => handleQuantityChange(item, 1)}>
-                    <AddIcon sx={{ fontSize: 16 }} />
+                    <AddIcon sx={{ fontSize: 14 }} />
                   </Button>
                 </ButtonGroup>
               )}
