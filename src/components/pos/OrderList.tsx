@@ -55,72 +55,72 @@ const OrderList: React.FC<OrderListProps> = ({
             sx={{
               flexDirection: 'column',
               alignItems: 'stretch',
-              py: 1.5,
+              py: 1,
               px: 0,
             }}
           >
-            {/* Main item row */}
-            <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', mb: 1 }}>
-              {/* Quantity controls */}
+            {/* Row 1: Product name + subtotal */}
+            <Box sx={{ display: 'flex', alignItems: 'flex-start', width: '100%', gap: 1, mb: 0.5 }}>
+              <Typography
+                variant="body2"
+                sx={{ fontWeight: 600, flex: 1, lineHeight: 1.3, wordBreak: 'break-word' }}
+              >
+                {item.product?.name}
+              </Typography>
+              <Typography variant="body2" sx={{ fontWeight: 600, whiteSpace: 'nowrap' }}>
+                ${(item.subtotal || 0).toLocaleString('es-CO')}
+              </Typography>
+            </Box>
+
+            {/* Row 2: Quantity controls + unit price + actions */}
+            <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', gap: 0.5 }}>
               {editable && (
-                <ButtonGroup size="small" sx={{ mr: 1 }}>
+                <ButtonGroup size="small" sx={{ '& .MuiButton-root': { minWidth: 28, px: 0.5 } }}>
                   <Button
                     onClick={() => handleQuantityChange(item, -1)}
                     disabled={item.quantity <= 1}
                   >
-                    <RemoveIcon fontSize="small" />
+                    <RemoveIcon sx={{ fontSize: 16 }} />
                   </Button>
-                  <Button disabled sx={{ minWidth: '40px' }}>
+                  <Button disabled sx={{ minWidth: '32px !important', fontSize: '0.8rem' }}>
                     {item.quantity}
                   </Button>
                   <Button onClick={() => handleQuantityChange(item, 1)}>
-                    <AddIcon fontSize="small" />
+                    <AddIcon sx={{ fontSize: 16 }} />
                   </Button>
                 </ButtonGroup>
               )}
 
-              {/* Product info */}
-              <Box sx={{ flex: 1 }}>
-                <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                  {item.product?.name}
-                </Typography>
-                
-                {/* Unit price */}
-                <Typography variant="body2" color="text.secondary">
-                  ${(item.unit_price || 0).toLocaleString('es-CO')} c/u
-                </Typography>
-              </Box>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ flex: 1, ml: 0.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+              >
+                ${(item.unit_price || 0).toLocaleString('es-CO')} c/u
+              </Typography>
 
-              {/* Subtotal */}
-              <Box sx={{ textAlign: 'right', mr: 1 }}>
-                <Typography variant="subtitle1">
-                  ${(item.subtotal || 0).toLocaleString('es-CO')}
-                </Typography>
-              </Box>
-
-              {/* Action buttons */}
               {editable && (
-                <Box>
+                <Box sx={{ display: 'flex', flexShrink: 0 }}>
                   {onEditNotes && (
                     <IconButton
                       size="small"
                       onClick={() => onEditNotes(item)}
-                      sx={{ mr: 0.5 }}
-                      color={item.notes ? "primary" : "default"}
+                      sx={{ p: 0.5 }}
+                      color={item.notes ? 'primary' : 'default'}
                       title="Agregar nota"
                     >
-                      <NoteIcon fontSize="small" />
+                      <NoteIcon sx={{ fontSize: 18 }} />
                     </IconButton>
                   )}
                   {onEditItem && item.product?.modifiers && item.product.modifiers.length > 0 && (
                     <IconButton
                       size="small"
                       onClick={() => onEditItem(item)}
-                      sx={{ mr: 0.5 }}
-                      color={item.modifiers && item.modifiers.length > 0 ? "primary" : "default"}
+                      sx={{ p: 0.5 }}
+                      color={item.modifiers && item.modifiers.length > 0 ? 'primary' : 'default'}
                       title="Editar modificadores"
                     >
-                      <EditIcon fontSize="small" />
+                      <EditIcon sx={{ fontSize: 18 }} />
                     </IconButton>
                   )}
                   <IconButton
@@ -130,9 +130,10 @@ const OrderList: React.FC<OrderListProps> = ({
                       const itemId = item.id ?? Date.now();
                       onRemoveItem(itemId);
                     }}
+                    sx={{ p: 0.5 }}
                     title="Eliminar"
                   >
-                    <DeleteIcon fontSize="small" />
+                    <DeleteIcon sx={{ fontSize: 18 }} />
                   </IconButton>
                 </Box>
               )}

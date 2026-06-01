@@ -1259,7 +1259,7 @@ const POS: React.FC = () => {
         <Divider />
 
         {/* Order Items */}
-        <Box sx={{ flex: 1, overflow: 'auto', p: 2 }}>
+        <Box sx={{ flex: 1, overflow: 'auto', px: 1.5, py: 1 }}>
           {orderItems.length === 0 ? (
             <Box sx={{ 
               display: 'flex', 
@@ -1293,38 +1293,38 @@ const POS: React.FC = () => {
         <Divider />
 
         {/* Order Totals */}
-        <Box sx={{ p: 2 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-            <Typography>Subtotal:</Typography>
-            <Typography>${orderTotals.subtotal.toLocaleString('es-CO')}</Typography>
+        <Box sx={{ px: 2, py: 1.25 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.25 }}>
+            <Typography variant="body2">Subtotal:</Typography>
+            <Typography variant="body2">${orderTotals.subtotal.toLocaleString('es-CO')}</Typography>
           </Box>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-            <Typography>
-              {orderTotals.isIVAResponsible ? 'IVA (19%):' : 'IVA (N/A):'}
-            </Typography>
-            <Typography>${orderTotals.tax.toLocaleString('es-CO')}</Typography>
-          </Box>
+          {orderTotals.isIVAResponsible && (
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.25 }}>
+              <Typography variant="body2">IVA (19%):</Typography>
+              <Typography variant="body2">${orderTotals.tax.toLocaleString('es-CO')}</Typography>
+            </Box>
+          )}
           {/* Service Charge - only show when enabled in config and checkbox is checked */}
           {serviceChargeEnabled && includeServiceCharge && (
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-              <Typography color="success.main">
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.25 }}>
+              <Typography variant="body2" color="success.main">
                 Servicio ({serviceChargePercent}%):
               </Typography>
-              <Typography color="success.main">
+              <Typography variant="body2" color="success.main">
                 ${orderTotals.serviceCharge.toLocaleString('es-CO')}
               </Typography>
             </Box>
           )}
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-            <Typography variant="h6">Total:</Typography>
-            <Typography variant="h6" color="primary">
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', mt: 0.5, mb: 1 }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>Total:</Typography>
+            <Typography variant="subtitle1" color="primary" sx={{ fontWeight: 700 }}>
               ${orderTotals.total.toLocaleString('es-CO')}
             </Typography>
           </Box>
 
           {/* Service Charge Checkbox - only visible when enabled in config */}
           {serviceChargeEnabled && (
-            <Box sx={{ mb: 1 }}>
+            <Box sx={{ mb: 0.5 }}>
               <FormControlLabel
                 control={
                   <Checkbox
@@ -1332,16 +1332,17 @@ const POS: React.FC = () => {
                     onChange={(e) => setIncludeServiceCharge(e.target.checked)}
                     color="success"
                     size="small"
+                    sx={{ py: 0.25 }}
                   />
                 }
                 label={`Incluir Servicio (${serviceChargePercent}%)`}
-                sx={{ '& .MuiFormControlLabel-label': { fontSize: '0.875rem' } }}
+                sx={{ m: 0, '& .MuiFormControlLabel-label': { fontSize: '0.8rem' } }}
               />
             </Box>
           )}
 
           {!isDIANMode && isElectronicInvoicingEnabled && (
-            <Box sx={{ mb: 2 }}>
+            <Box sx={{ mb: 0.5 }}>
               <FormControlLabel
                 control={
                   <Checkbox
@@ -1349,6 +1350,8 @@ const POS: React.FC = () => {
                     onChange={(e) => setNeedsElectronicInvoice(e.target.checked)}
                     disabled={invoiceLimitStatus?.alternating_enabled || false}
                     color="primary"
+                    size="small"
+                    sx={{ py: 0.25 }}
                   />
                 }
                 label={
@@ -1356,16 +1359,18 @@ const POS: React.FC = () => {
                     ? `Factura Electrónica (${invoiceLimitStatus?.message || ''})`
                     : 'Factura Electrónica'
                 }
+                sx={{ m: 0, '& .MuiFormControlLabel-label': { fontSize: '0.8rem' } }}
               />
             </Box>
           )}
 
           {/* Action Buttons */}
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75, mt: 0.5 }}>
             {/* Row 1: Management Actions */}
-            <Box sx={{ display: 'flex', gap: 1 }}>
+            <Box sx={{ display: 'flex', gap: 0.75 }}>
               <Button
                 fullWidth
+                size="small"
                 variant="outlined"
                 color="error"
                 startIcon={<ClearIcon />}
@@ -1376,9 +1381,10 @@ const POS: React.FC = () => {
               </Button>
               <Button
                 fullWidth
+                size="small"
                 variant="outlined"
                 color="primary"
-                startIcon={isSavingOrder ? <CircularProgress size={20} color="inherit" /> : <SaveIcon />}
+                startIcon={isSavingOrder ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />}
                 onClick={saveOrder}
                 disabled={orderItems.length === 0 || isSavingOrder || isProcessingPayment}
               >
@@ -1391,10 +1397,10 @@ const POS: React.FC = () => {
               fullWidth
               variant="contained"
               color="success"
-              size="large"
-              startIcon={isProcessingPayment ? <CircularProgress size={20} color="inherit" /> : <PaymentIcon />}
+              startIcon={isProcessingPayment ? <CircularProgress size={18} color="inherit" /> : <PaymentIcon />}
               onClick={handlePaymentClick}
               disabled={orderItems.length === 0 || !cashRegisterId || isSavingOrder || isProcessingPayment}
+              sx={{ py: 1 }}
             >
               {isProcessingPayment ? 'Procesando...' : 'Pagar'}
             </Button>
