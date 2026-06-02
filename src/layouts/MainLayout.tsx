@@ -45,6 +45,8 @@ import {
   MonetizationOn as MoneyIcon,
   Group as GroupIcon,
   Security as SecurityIcon,
+  Cloud as CloudIcon,
+  CloudOff as CloudOffIcon,
   AccountCircle,
   Kitchen as KitchenIcon,
   Fastfood as FastfoodIcon,
@@ -53,7 +55,7 @@ import {
   Email as EmailIcon,
   Support as SupportIcon,
 } from '@mui/icons-material';
-import { useAuth, useWebSocket, useDIANMode, useNotifications, usePermissions } from '../hooks';
+import { useAuth, useWebSocket, useDIANMode, useNotifications, usePermissions, useSyncMonitor } from '../hooks';
 import { Warning as WarningIcon, CheckCircle as CheckCircleIcon, Error as ErrorIcon, Info as InfoIcon } from '@mui/icons-material';
 import { wailsConfigService } from '../services/wailsConfigService';
 import { wailsLicenseService } from '../services/wailsLicenseService';
@@ -204,6 +206,12 @@ const menuItems: MenuItem[] = [
     path: '/settings',
     permission: 'settings.access',
   },
+  {
+    text: 'Backups en la nube',
+    icon: <CloudIcon />,
+    path: '/backup',
+    permission: 'settings.access',
+  },
 ];
 
 const MainLayout: React.FC = () => {
@@ -211,6 +219,9 @@ const MainLayout: React.FC = () => {
   const location = useLocation();
   const { user, logout, cashRegisterId } = useAuth();
   const { can } = usePermissions();
+  // Start polling the sync monitor. The hook fires header notifications when
+  // failed invoices appear/recover or when the link to apidian goes down/up.
+  const syncStatus = useSyncMonitor();
   const { isConnected } = useWebSocket();
   const { isDIANMode, toggleDIANMode, isElectronicInvoicingEnabled, dianApiUrl, dianConfig } = useDIANMode();
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
@@ -382,7 +393,7 @@ const MainLayout: React.FC = () => {
     const hasChildren = item.children && item.children.length > 0;
 
     // Rutas que requieren caja abierta (todas excepto estas)
-    const allowedWithoutCash = ['/cash-register', '/settings', '/employees', '/permissions'];
+    const allowedWithoutCash = ['/cash-register', '/settings', '/employees', '/permissions', '/backup'];
     const requiresCashRegister = !allowedWithoutCash.some(route => item.path.startsWith(route));
     const isDisabled = requiresCashRegister && !cashRegisterId;
 
@@ -618,6 +629,44 @@ const MainLayout: React.FC = () => {
                 }}
               >
                 <DIANIcon sx={{ color: isDIANMode ? '#ffeb3b' : 'inherit' }} />
+              </IconButton>
+            </Tooltip>
+          )}
+
+          {/* Sync / Connectivity indicator. Always visible: green when the
+              link to DIAN is up and no invoices are pending; orange/red when
+              the link is down or invoices are queued. Click to jump to Sales
+              so the cashier can act on them. */}
+          {syncStatus && (
+            <Tooltip
+              title={
+                !syncStatus.connectivity.online
+                  ? `Sin conexión a DIAN${syncStatus.connectivity.last_error ? ` (${syncStatus.connectivity.last_error})` : ''}`
+                  : syncStatus.failed_count > 0
+                  ? `${syncStatus.failed_count} factura(s) pendiente(s) de reenvío`
+                  : 'Sincronización al día'
+              }
+            >
+              <IconButton
+                color="inherit"
+                onClick={() => navigate('/sales')}
+                sx={{ mr: 0.5 }}
+              >
+                <Badge
+                  badgeContent={syncStatus.failed_count}
+                  color={!syncStatus.connectivity.online ? 'error' : 'warning'}
+                  invisible={syncStatus.connectivity.online && syncStatus.failed_count === 0}
+                >
+                  {syncStatus.connectivity.online ? (
+                    <CloudIcon
+                      sx={{
+                        color: syncStatus.failed_count > 0 ? 'warning.light' : 'success.light',
+                      }}
+                    />
+                  ) : (
+                    <CloudOffIcon sx={{ color: 'error.light' }} />
+                  )}
+                </Badge>
               </IconButton>
             </Tooltip>
           )}

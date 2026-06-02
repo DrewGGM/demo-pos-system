@@ -1067,32 +1067,134 @@ const Products: React.FC = () => {
                 Modificadores
               </Typography>
               <Typography variant="caption" color="text.secondary" gutterBottom display="block">
-                Selecciona los modificadores disponibles para este producto (extras, ingredientes, etc.)
+                Selecciona los modificadores disponibles para este producto, agrupados por su grupo de origen.
               </Typography>
-              <Box sx={{ mt: 2, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                {modifiers.length === 0 ? (
-                  <Typography variant="body2" color="text.secondary">
-                    No hay modificadores disponibles. Créalos primero en la sección de Modificadores.
-                  </Typography>
-                ) : (
-                  modifiers.map((modifier) => (
-                    <Chip
-                      key={modifier.id}
-                      label={`${modifier.name} (${modifier.price_change >= 0 ? '+' : ''}$${modifier.price_change})`}
-                      onClick={() => {
-                        if (productModifiers.includes(modifier.id)) {
-                          setProductModifiers(productModifiers.filter(id => id !== modifier.id));
-                        } else {
-                          setProductModifiers([...productModifiers, modifier.id]);
-                        }
-                      }}
-                      color={productModifiers.includes(modifier.id) ? 'primary' : 'default'}
-                      variant={productModifiers.includes(modifier.id) ? 'filled' : 'outlined'}
-                      icon={productModifiers.includes(modifier.id) ? <CloseIcon /> : <AddIcon />}
-                    />
-                  ))
-                )}
-              </Box>
+
+              {modifiers.length === 0 ? (
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+                  No hay modificadores disponibles. Créalos primero en la sección de Modificadores.
+                </Typography>
+              ) : (() => {
+                // Group modifiers by their ModifierGroup. Modifiers without a
+                // matching group land in a synthetic "Sin grupo" bucket so the
+                // user can still see + manage them.
+                const byGroup: Record<string, { group: any; modifiers: typeof modifiers }> = {};
+                const groupName = (groupId: number) =>
+                  modifierGroups.find((g) => g.id === groupId)?.name || 'Sin grupo';
+                for (const m of modifiers) {
+                  const key = String(m.group_id || 0);
+                  if (!byGroup[key]) {
+                    byGroup[key] = {
+                      group: modifierGroups.find((g) => g.id === m.group_id) || {
+                        id: 0,
+                        name: groupName(m.group_id || 0),
+                      },
+                      modifiers: [],
+                    };
+                  }
+                  byGroup[key].modifiers.push(m);
+                }
+                const orderedKeys = Object.keys(byGroup).sort((a, b) => {
+                  if (a === '0') return 1;
+                  if (b === '0') return -1;
+                  return byGroup[a].group.name.localeCompare(byGroup[b].group.name);
+                });
+                // Bulk toggle helpers: lets the user enable/disable a whole group.
+                const allInGroupSelected = (mods: typeof modifiers) =>
+                  mods.every((m) => productModifiers.includes(m.id));
+                const someInGroupSelected = (mods: typeof modifiers) =>
+                  mods.some((m) => productModifiers.includes(m.id));
+                const toggleGroup = (mods: typeof modifiers) => {
+                  const ids = mods.map((m) => m.id);
+                  if (allInGroupSelected(mods)) {
+                    setProductModifiers(productModifiers.filter((id) => !ids.includes(id)));
+                  } else {
+                    setProductModifiers(Array.from(new Set([...productModifiers, ...ids])));
+                  }
+                };
+
+                return (
+                  <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                    {orderedKeys.map((key) => {
+                      const g = byGroup[key].group;
+                      const mods = byGroup[key].modifiers;
+                      const allOn = allInGroupSelected(mods);
+                      const someOn = someInGroupSelected(mods);
+                      const selectedCount = mods.filter((m) => productModifiers.includes(m.id)).length;
+                      return (
+                        <Paper
+                          key={key}
+                          variant="outlined"
+                          sx={{ p: 1.5, borderColor: someOn ? 'primary.main' : 'divider' }}
+                        >
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                            <Typography variant="subtitle2" sx={{ fontWeight: 700, flex: 1 }}>
+                              {g.name}
+                            </Typography>
+                            {(g.required || g.min_select > 0) && (
+                              <Chip
+                                size="small"
+                                label="Requerido"
+                                color="warning"
+                                variant="outlined"
+                                sx={{ height: 18, fontSize: 10 }}
+                              />
+                            )}
+                            {g.multiple && (
+                              <Chip
+                                size="small"
+                                label="Múltiple"
+                                color="info"
+                                variant="outlined"
+                                sx={{ height: 18, fontSize: 10 }}
+                              />
+                            )}
+                            <Chip
+                              size="small"
+                              label={`${selectedCount}/${mods.length}`}
+                              variant="outlined"
+                              sx={{ height: 18, fontSize: 10 }}
+                            />
+                            <Button
+                              size="small"
+                              variant={allOn ? 'outlined' : 'text'}
+                              onClick={() => toggleGroup(mods)}
+                              sx={{ minWidth: 'auto', textTransform: 'none', fontSize: 11 }}
+                            >
+                              {allOn ? 'Quitar todos' : 'Seleccionar todos'}
+                            </Button>
+                          </Box>
+                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
+                            {mods.map((modifier) => {
+                              const selected = productModifiers.includes(modifier.id);
+                              const sign = modifier.price_change >= 0 ? '+' : '';
+                              const priceLabel = modifier.price_change === 0
+                                ? ''
+                                : ` (${sign}$${modifier.price_change.toLocaleString('es-CO')})`;
+                              return (
+                                <Chip
+                                  key={modifier.id}
+                                  label={`${modifier.name}${priceLabel}`}
+                                  onClick={() => {
+                                    if (selected) {
+                                      setProductModifiers(productModifiers.filter((id) => id !== modifier.id));
+                                    } else {
+                                      setProductModifiers([...productModifiers, modifier.id]);
+                                    }
+                                  }}
+                                  color={selected ? 'primary' : 'default'}
+                                  variant={selected ? 'filled' : 'outlined'}
+                                  icon={selected ? <CloseIcon /> : <AddIcon />}
+                                />
+                              );
+                            })}
+                          </Box>
+                        </Paper>
+                      );
+                    })}
+                  </Box>
+                );
+              })()}
             </Grid>
             <Grid item xs={12}>
               <Divider sx={{ my: 2 }} />

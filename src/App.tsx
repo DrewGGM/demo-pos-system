@@ -25,6 +25,7 @@ import Profile from './pages/Profile';
 import ProfitReport from './pages/ProfitReport';
 import Accounting from './pages/Accounting';
 import Permissions from './pages/Permissions';
+import BackupSettings from './pages/Settings/BackupSettings';
 
 import { useAuth } from './hooks';
 
@@ -66,6 +67,7 @@ const App: React.FC = () => {
           <Route path="/accounting" element={<Accounting />} />
           <Route path="/settings/*" element={<ProtectedRoute requiredPermissions={['settings.access']}><Settings /></ProtectedRoute>} />
           <Route path="/permissions" element={<ProtectedRoute requiredPermissions={['employees.manage']}><Permissions /></ProtectedRoute>} />
+          <Route path="/backup" element={<ProtectedRoute requiredPermissions={['settings.access']}><BackupSettings /></ProtectedRoute>} />
         </Route>
 
         <Route path="/" element={<Navigate to={isAuthenticated ? (cashRegisterId ? "/dashboard" : "/cash-register") : "/login"} />} />
