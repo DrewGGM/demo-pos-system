@@ -15,11 +15,17 @@ import { wailsPermissionService } from '../services/wailsPermissionService';
 export function usePermissions() {
   const { user } = useAuth();
   const [snapshot, setSnapshot] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState(false);
+  // Start with loading=true so the very first render of any gated component
+  // (ProtectedRoute, sidebar items, etc.) waits for the snapshot instead of
+  // racing the async fetch with an empty {} and bouncing the user to
+  // /dashboard. Without this, every fresh navigation to a permission-gated
+  // route flickers to the redirect target on first paint.
+  const [loading, setLoading] = useState(true);
 
   const reload = useCallback(async () => {
     if (!user?.id) {
       setSnapshot({});
+      setLoading(false);
       return;
     }
     setLoading(true);
