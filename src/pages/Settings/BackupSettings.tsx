@@ -147,11 +147,14 @@ const BackupSettings: React.FC = () => {
   }
 
   return (
-    <Box sx={{ p: { xs: 2, md: 3 } }}>
+    // No outer padding — this component is rendered inside a Settings Paper
+    // tab panel that already provides spacing. Adding our own would double
+    // the gutter and the page would feel cramped.
+    <Box>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-        <CloudUploadIcon color="primary" sx={{ fontSize: 36 }} />
+        <CloudUploadIcon color="primary" sx={{ fontSize: 32 }} />
         <Box sx={{ flex: 1 }}>
-          <Typography variant="h5" sx={{ fontWeight: 700 }}>
+          <Typography variant="h6" sx={{ fontWeight: 700 }}>
             Backups en la nube
           </Typography>
           <Typography variant="body2" color="text.secondary">

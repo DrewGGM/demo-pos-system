@@ -61,6 +61,7 @@ import {
   Send as SendIcon,
   Close as CloseIcon,
   CloudSync as CloudSyncIcon,
+  CloudUpload as CloudUploadIcon,
   Payment as PaymentIcon,
   Category as CategoryIcon,
   ViewModule as ViewModuleIcon,
@@ -95,6 +96,7 @@ import MCPSettings from './MCPSettings';
 import NetworkSettings from './NetworkSettings';
 import BoldSettings from './BoldSettings';
 import ThemeSettings from './ThemeSettings';
+import BackupSettings from './BackupSettings';
 import GeneralSettings, {
   ModuleConfig,
   loadModuleConfig,
@@ -1528,6 +1530,9 @@ const Settings: React.FC = () => {
           {isModuleEnabled('bd_dian', moduleConfig, licenseModules) && <Tab icon={<StorageIcon />} label="BD DIAN" />}
           {isModuleEnabled('ia_mcp', moduleConfig, licenseModules) && <Tab icon={<SmartToyIcon />} label="IA (MCP)" />}
           {isModuleEnabled('red_puertos', moduleConfig, licenseModules) && <Tab icon={<WifiIcon />} label="Red y Puertos" />}
+          {/* Backups en la nube — siempre visible. Es una capacidad transversal
+              (no específica de un módulo), así que NO va detrás de isModuleEnabled. */}
+          <Tab icon={<CloudUploadIcon />} label="Backups" />
           <Tab icon={<PaletteIcon />} label="Tema" />
         </Tabs>
 
@@ -1548,8 +1553,12 @@ const Settings: React.FC = () => {
         {(() => {
           // Calculate tab indices for each module based on what's enabled
           const moduleOrder = ['empresa', 'facturacion', 'metodos_pago', 'tipos_pedido', 'paginas_pos', 'impresion', 'google_sheets', 'rappi', 'bold', 'notificaciones', 'sistema', 'websocket', 'bd_dian', 'ia_mcp', 'red_puertos'];
-          // Theme tab always shows, gets the next available index
-          const themeTabIndex = moduleOrder.reduce((idx, mod) => isModuleEnabled(mod, moduleConfig) ? idx + 1 : idx, 1);
+          // Backups and Theme are always-visible trailing tabs. Their indices
+          // are computed from the count of enabled modules so they shift left
+          // when modules are disabled.
+          const trailingStart = moduleOrder.reduce((idx, mod) => isModuleEnabled(mod, moduleConfig) ? idx + 1 : idx, 1);
+          const backupTabIndex = trailingStart;
+          const themeTabIndex = trailingStart + 1;
           const tabIndices: Record<string, number> = {};
           let currentIndex = 1; // Start at 1 since General is 0
           moduleOrder.forEach(moduleId => {
@@ -3910,6 +3919,11 @@ const Settings: React.FC = () => {
                   <NetworkSettings />
                 </TabPanel>
               )}
+
+              {/* Backups en la nube — always visible */}
+              <TabPanel value={selectedTab} index={backupTabIndex}>
+                <BackupSettings />
+              </TabPanel>
 
               {/* Theme Settings — always visible */}
               <TabPanel value={selectedTab} index={themeTabIndex}>

@@ -206,12 +206,6 @@ const menuItems: MenuItem[] = [
     path: '/settings',
     permission: 'settings.access',
   },
-  {
-    text: 'Backups en la nube',
-    icon: <CloudIcon />,
-    path: '/backup',
-    permission: 'settings.access',
-  },
 ];
 
 const MainLayout: React.FC = () => {
@@ -393,7 +387,7 @@ const MainLayout: React.FC = () => {
     const hasChildren = item.children && item.children.length > 0;
 
     // Rutas que requieren caja abierta (todas excepto estas)
-    const allowedWithoutCash = ['/cash-register', '/settings', '/employees', '/permissions', '/backup'];
+    const allowedWithoutCash = ['/cash-register', '/settings', '/employees', '/permissions'];
     const requiresCashRegister = !allowedWithoutCash.some(route => item.path.startsWith(route));
     const isDisabled = requiresCashRegister && !cashRegisterId;
 
