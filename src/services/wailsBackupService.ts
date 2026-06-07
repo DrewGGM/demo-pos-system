@@ -94,6 +94,25 @@ class WailsBackupService {
     const list = await W.ListBackups();
     return (list || []) as BackupInfo[];
   }
+
+  async restoreFromBucket(key: string): Promise<RestoreResult> {
+    if (!W) throw new Error('BackupService no disponible en modo demo');
+    return (await W.RestoreFromBucket(key)) as RestoreResult;
+  }
+
+  async restoreFromLocalFile(path: string): Promise<RestoreResult> {
+    if (!W) throw new Error('BackupService no disponible en modo demo');
+    return (await W.RestoreFromLocalFile(path)) as RestoreResult;
+  }
+}
+
+export interface RestoreResult {
+  source: string;
+  started_at: string;
+  finished_at: string;
+  bytes_in: number;
+  pre_backup_key?: string;
+  error?: string;
 }
 
 export const wailsBackupService = new WailsBackupService();

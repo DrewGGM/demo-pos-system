@@ -21,6 +21,11 @@ import {
   TableRow,
   Chip,
   InputAdornment,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from '@mui/material';
 import {
   CloudUpload as CloudUploadIcon,
@@ -30,6 +35,9 @@ import {
   ErrorOutline as ErrorIcon,
   Visibility,
   VisibilityOff,
+  RestoreFromTrash as RestoreIcon,
+  UploadFile as UploadIcon,
+  Warning as WarningIcon,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import {
@@ -37,6 +45,12 @@ import {
   BackupConfig,
   BackupInfo,
 } from '../../services/wailsBackupService';
+
+// Wails runtime exposes a native file picker. We dynamically dereference the
+// global so the page also works in pure-Vite demo mode (where window.runtime
+// doesn't exist) — the import button just stays disabled.
+const wailsOpenFileDialog: ((opts: any) => Promise<string>) | undefined =
+  (window as any).runtime?.OpenFileDialog;
 
 // BackupSettings is the admin UI to configure automated database backups to
 // Cloudflare R2 (or any S3-compatible target).
@@ -58,6 +72,14 @@ const BackupSettings: React.FC = () => {
   const [showSecret, setShowSecret] = useState(false);
   const [backups, setBackups] = useState<BackupInfo[]>([]);
   const [loadingBackups, setLoadingBackups] = useState(false);
+  // Restore confirmation: nuked-by-destructive-action so we ALWAYS go through
+  // a modal even when the source is a single file picked from disk.
+  const [restoreTarget, setRestoreTarget] = useState<{
+    source: 'bucket' | 'file';
+    label: string; // shown in the dialog
+    payload: string; // bucket key or local file path
+  } | null>(null);
+  const [restoring, setRestoring] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -135,6 +157,65 @@ const BackupSettings: React.FC = () => {
       toast.error(err?.message || 'No se pudo ejecutar el backup');
     } finally {
       setRunning(false);
+    }
+  };
+
+  // Restore handlers. We split "pick the source" from "actually restore" so
+  // both bucket entries and local files go through the same confirmation
+  // modal — restore is destructive and we want one obvious chokepoint.
+  const requestBucketRestore = (b: BackupInfo) => {
+    setRestoreTarget({
+      source: 'bucket',
+      label: `${b.key} (${formatBytes(b.size)})`,
+      payload: b.key,
+    });
+  };
+
+  const requestLocalRestore = async () => {
+    if (!wailsOpenFileDialog) {
+      toast.error('El selector de archivos sólo está disponible en la app instalada');
+      return;
+    }
+    try {
+      const path = await wailsOpenFileDialog({
+        title: 'Selecciona el archivo de backup',
+        filters: [{ displayName: 'Backups (*.sql.gz, *.db.gz, *.sql)', pattern: '*.sql.gz;*.db.gz;*.sql' }],
+      });
+      if (!path) return; // user cancelled
+      setRestoreTarget({
+        source: 'file',
+        label: path,
+        payload: path,
+      });
+    } catch (err: any) {
+      toast.error(err?.message || 'No se pudo abrir el selector');
+    }
+  };
+
+  const confirmRestore = async () => {
+    if (!restoreTarget) return;
+    setRestoring(true);
+    try {
+      const result =
+        restoreTarget.source === 'bucket'
+          ? await wailsBackupService.restoreFromBucket(restoreTarget.payload)
+          : await wailsBackupService.restoreFromLocalFile(restoreTarget.payload);
+
+      if (result.error) {
+        toast.error(`Restore falló: ${result.error}`, { autoClose: 12000 });
+      } else {
+        toast.success(
+          `Restore completado (${formatBytes(result.bytes_in)}). ${
+            result.pre_backup_key ? 'Copia previa guardada en ' + result.pre_backup_key : ''
+          }`,
+          { autoClose: 12000 },
+        );
+      }
+      setRestoreTarget(null);
+    } catch (err: any) {
+      toast.error(err?.message || 'No se pudo restaurar');
+    } finally {
+      setRestoring(false);
     }
   };
 
@@ -389,10 +470,23 @@ const BackupSettings: React.FC = () => {
       </Box>
 
       <Paper>
-        <Box sx={{ display: 'flex', alignItems: 'center', p: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', p: 2, gap: 1 }}>
           <Typography variant="subtitle1" sx={{ fontWeight: 700, flex: 1 }}>
             Copias en el bucket
           </Typography>
+          <Tooltip title="Restaurar desde un archivo local (.sql.gz, .db.gz)">
+            <span>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<UploadIcon />}
+                onClick={requestLocalRestore}
+                disabled={!wailsOpenFileDialog}
+              >
+                Importar archivo
+              </Button>
+            </span>
+          </Tooltip>
           <Tooltip title="Recargar">
             <IconButton onClick={refreshBackups} disabled={loadingBackups}>
               {loadingBackups ? <CircularProgress size={20} /> : <RefreshIcon />}
@@ -403,7 +497,8 @@ const BackupSettings: React.FC = () => {
         {backups.length === 0 ? (
           <Box sx={{ p: 3, textAlign: 'center', color: 'text.secondary' }}>
             <Typography variant="body2">
-              No hay copias visibles. Ejecuta un backup o prueba la conexión.
+              No hay copias visibles. Ejecuta un backup, prueba la conexión, o usa "Importar
+              archivo" para subir uno desde tu PC.
             </Typography>
           </Box>
         ) : (
@@ -414,6 +509,7 @@ const BackupSettings: React.FC = () => {
                   <TableCell>Archivo</TableCell>
                   <TableCell>Tamaño</TableCell>
                   <TableCell>Fecha</TableCell>
+                  <TableCell align="right">Acciones</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -422,6 +518,17 @@ const BackupSettings: React.FC = () => {
                     <TableCell sx={{ fontFamily: 'monospace', fontSize: 12 }}>{b.key}</TableCell>
                     <TableCell>{formatBytes(b.size)}</TableCell>
                     <TableCell>{new Date(b.last_modified).toLocaleString('es-CO')}</TableCell>
+                    <TableCell align="right">
+                      <Tooltip title="Restaurar esta copia (destructivo)">
+                        <IconButton
+                          size="small"
+                          color="warning"
+                          onClick={() => requestBucketRestore(b)}
+                        >
+                          <RestoreIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -429,6 +536,62 @@ const BackupSettings: React.FC = () => {
           </TableContainer>
         )}
       </Paper>
+
+      {/* Confirmation modal — destructive action so we force a deliberate
+          click and explain exactly what's about to happen. */}
+      <Dialog
+        open={!!restoreTarget}
+        onClose={() => !restoring && setRestoreTarget(null)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <WarningIcon color="warning" />
+          ¿Restaurar la base de datos?
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText component="div">
+            <Typography variant="body2" sx={{ mb: 1 }}>
+              Vas a <b>reemplazar la base de datos actual</b> con el contenido de:
+            </Typography>
+            <Box
+              sx={{
+                p: 1,
+                bgcolor: 'action.hover',
+                borderRadius: 1,
+                fontFamily: 'monospace',
+                fontSize: 12,
+                wordBreak: 'break-all',
+                mb: 2,
+              }}
+            >
+              {restoreTarget?.label}
+            </Box>
+            <Alert severity="warning" sx={{ mb: 1 }}>
+              Antes de aplicar el restore se crea automáticamente una <b>copia de seguridad
+              del estado actual</b> en <code>data/pre-restore-backups/</code> por si algo sale mal.
+            </Alert>
+            <Typography variant="body2" color="text.secondary">
+              Si tienes otros usuarios conectados, ciérralos antes de continuar. La operación
+              puede tardar varios segundos dependiendo del tamaño del backup.
+            </Typography>
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setRestoreTarget(null)} disabled={restoring}>
+            Cancelar
+          </Button>
+          <Button
+            variant="contained"
+            color="warning"
+            onClick={confirmRestore}
+            disabled={restoring}
+            startIcon={restoring ? <CircularProgress size={16} /> : <RestoreIcon />}
+          >
+            {restoring ? 'Restaurando...' : 'Restaurar'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
