@@ -441,6 +441,26 @@ const BackupSettings: React.FC = () => {
         </Grid>
       </Paper>
 
+      <Paper sx={{ p: 3, mb: 3 }}>
+        <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>
+          PostgreSQL (avanzado)
+        </Typography>
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
+          La app detecta automáticamente PostgreSQL en ubicaciones estándar (instalador EnterpriseDB,
+          embedded del POS). Si tienes uno instalado en otra ruta, pégala aquí. Dejar en blanco usa
+          autodetect.
+        </Typography>
+        <TextField
+          fullWidth
+          size="small"
+          label="Ruta a pg_dump / psql (opcional)"
+          placeholder='Ej: C:\Program Files\PostgreSQL\16\bin'
+          value={cfg.pg_bin_path}
+          onChange={(e) => update('pg_bin_path', e.target.value)}
+          helperText="Carpeta que contiene pg_dump.exe y psql.exe. Puedes pegar la carpeta bin/ o la raíz del install."
+        />
+      </Paper>
+
       <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 3 }}>
         <Button
           variant="contained"

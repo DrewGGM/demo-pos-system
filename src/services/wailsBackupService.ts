@@ -21,6 +21,7 @@ export interface BackupConfig {
   retention_days: number;
   encryption_enabled: boolean;
   encryption_key: string;
+  pg_bin_path: string;
   last_backup_at?: string;
   last_backup_size: number;
   last_backup_key: string;
@@ -61,6 +62,7 @@ function defaultConfig(): BackupConfig {
     retention_days: 30,
     encryption_enabled: false,
     encryption_key: '',
+    pg_bin_path: '',
     last_backup_size: 0,
     last_backup_key: '',
     last_error: '',
