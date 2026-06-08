@@ -454,10 +454,10 @@ const BackupSettings: React.FC = () => {
           fullWidth
           size="small"
           label="Ruta a pg_dump / psql (opcional)"
-          placeholder='Ej: C:\Program Files\PostgreSQL\16\bin'
+          placeholder='Ej: C:\Program Files\PostgreSQL\17\bin'
           value={cfg.pg_bin_path}
           onChange={(e) => update('pg_bin_path', e.target.value)}
-          helperText="Carpeta que contiene pg_dump.exe y psql.exe. Puedes pegar la carpeta bin/ o la raíz del install."
+          helperText="Acepta cualquiera de estos formatos: (a) la carpeta bin/ — Ej: C:\Program Files\PostgreSQL\17\bin — (b) la raíz del install — Ej: C:\Program Files\PostgreSQL\17 — o (c) la ruta completa al .exe. Importante: la versión de pg_dump debe ser ≥ versión del servidor (si tu servidor es 17.x, usa pg_dump 17.x)."
         />
       </Paper>
 
