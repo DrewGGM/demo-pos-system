@@ -91,6 +91,35 @@ export interface MigrationSummary {
   errors?: string[];
 }
 
+export interface BackfillOptions {
+  root_path: string;
+  overwrite: boolean;
+  include_zip: boolean;
+}
+
+export interface BackfillExample {
+  file: string;
+  kind: string;
+  prefix: string;
+  number: string;
+  target_table: string;
+  status: string;
+}
+
+export interface BackfillResult {
+  started_at: string;
+  finished_at: string;
+  root_path: string;
+  xmls_found: number;
+  pdfs_found: number;
+  xmls_applied: number;
+  pdfs_applied: number;
+  skipped_no_match: number;
+  skipped_existing: number;
+  errors?: string[];
+  examples?: BackfillExample[];
+}
+
 class WailsApidianMigrationService {
   async preview(dumpPath: string): Promise<MigrationPreview> {
     if (!W) throw new Error('Servicio de migración no disponible en modo demo');
@@ -105,6 +134,11 @@ class WailsApidianMigrationService {
   async lastSummary(): Promise<MigrationSummary | null> {
     if (!W) return null;
     return (await W.LastSummary()) as MigrationSummary;
+  }
+
+  async backfillFromStorage(opts: BackfillOptions): Promise<BackfillResult> {
+    if (!W) throw new Error('Servicio de migración no disponible en modo demo');
+    return (await W.BackfillFromApidianStorage(opts)) as BackfillResult;
   }
 }
 

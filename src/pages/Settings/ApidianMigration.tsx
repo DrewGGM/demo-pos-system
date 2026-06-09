@@ -36,6 +36,7 @@ import {
   wailsApidianMigrationService,
   MigrationPreview,
   MigrationSummary,
+  BackfillResult,
 } from '../../services/wailsApidianMigrationService';
 
 // Native file picker comes from the Wails runtime. Unavailable in pure-Vite
@@ -60,6 +61,16 @@ const ApidianMigration: React.FC = () => {
   const [summary, setSummary] = useState<MigrationSummary | null>(null);
   const [overwriteConfig, setOverwriteConfig] = useState(false);
   const [importDocuments, setImportDocuments] = useState(true);
+
+  // Backfill state — independent from the dump migration. Some customers
+  // hand over the apidian `storage/app/` folder later, after they already
+  // ran the SQL migration; this section lets the operator paste that path
+  // and fill in xml_document / pdf_document columns post-hoc.
+  const [storagePath, setStoragePath] = useState('');
+  const [backfillOverwrite, setBackfillOverwrite] = useState(false);
+  const [backfillIncludeZip, setBackfillIncludeZip] = useState(false);
+  const [backfillRunning, setBackfillRunning] = useState(false);
+  const [backfillResult, setBackfillResult] = useState<BackfillResult | null>(null);
 
   const steps = ['Seleccionar dump', 'Vista previa', 'Importar'];
 
@@ -132,6 +143,60 @@ const ApidianMigration: React.FC = () => {
     setDumpPath('');
     setPreview(null);
     setSummary(null);
+  };
+
+  // Native folder picker for the backfill step. Wails OpenDirectoryDialog
+  // when present; otherwise the textbox is the only way (works fine when
+  // the admin pastes a path).
+  const wailsOpenDirDialog: ((opts: any) => Promise<string>) | undefined =
+    (window as any).runtime?.OpenDirectoryDialog;
+
+  const handlePickStorage = async () => {
+    if (!wailsOpenDirDialog) {
+      toast.error('Selector de carpetas sólo disponible en la app instalada');
+      return;
+    }
+    try {
+      const path = await wailsOpenDirDialog({
+        title: 'Selecciona la carpeta storage/app de apidian',
+      });
+      if (!path) return;
+      setStoragePath(path);
+    } catch (err: any) {
+      toast.error(err?.message || 'No se pudo abrir el selector');
+    }
+  };
+
+  const handleBackfill = async () => {
+    if (!storagePath.trim()) {
+      toast.error('Selecciona la carpeta primero');
+      return;
+    }
+    if (
+      !window.confirm(
+        '¿Backfill desde storage?\n\nSe leerán los archivos XML/PDF de la carpeta y se asignarán a las facturas correspondientes en la BD local.',
+      )
+    ) {
+      return;
+    }
+    setBackfillRunning(true);
+    try {
+      const res = await wailsApidianMigrationService.backfillFromStorage({
+        root_path: storagePath,
+        overwrite: backfillOverwrite,
+        include_zip: backfillIncludeZip,
+      });
+      setBackfillResult(res);
+      if (res.errors && res.errors.length > 0) {
+        toast.warning(`Backfill completado con ${res.errors.length} error(es)`);
+      } else {
+        toast.success(`Backfill completado: ${res.xmls_applied} XML + ${res.pdfs_applied} PDF`);
+      }
+    } catch (err: any) {
+      toast.error(err?.message || 'Error en el backfill');
+    } finally {
+      setBackfillRunning(false);
+    }
   };
 
   return (
@@ -447,6 +512,138 @@ const ApidianMigration: React.FC = () => {
               <AlertTitle>{summary.errors.length} error(es)</AlertTitle>
               <Box sx={{ maxHeight: 200, overflow: 'auto', fontFamily: 'monospace', fontSize: 11 }}>
                 {summary.errors.map((e, i) => (
+                  <div key={i}>• {e}</div>
+                ))}
+              </Box>
+            </Alert>
+          )}
+        </Box>
+      )}
+
+      {/* Independent section: backfill XML/PDF from apidian's storage/app
+          folder. Decoupled from the SQL migration because customers often
+          hand the folder over later. Safe to re-run with overwrite=false. */}
+      <Divider sx={{ my: 3 }} />
+      <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>
+        Backfill de XML / PDF desde la carpeta <code>storage/app</code>
+      </Typography>
+      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
+        apidian guarda los XML y PDF en el filesystem (no en MySQL). Si tienes la carpeta{' '}
+        <code>storage/app/</code> de la instalación origen, pega su ruta aquí — el sistema
+        recorrerá <code>xml/</code> y <code>public/</code>, buscará la factura/NC/ND
+        correspondiente por número y rellenará <code>xml_document</code> /{' '}
+        <code>pdf_document</code>. Idempotente; sin sobrescribir por defecto.
+      </Typography>
+      <TextField
+        fullWidth
+        size="small"
+        label="Ruta de la carpeta storage/app"
+        placeholder="D:\\backup-apidian\\storage\\app"
+        value={storagePath}
+        onChange={(e) => setStoragePath(e.target.value)}
+        sx={{ mb: 1 }}
+      />
+      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 1 }}>
+        <Button
+          startIcon={<UploadIcon />}
+          variant="outlined"
+          size="small"
+          onClick={handlePickStorage}
+          disabled={!wailsOpenDirDialog}
+        >
+          Seleccionar carpeta
+        </Button>
+        <FormControlLabel
+          control={
+            <Switch
+              checked={backfillOverwrite}
+              onChange={(e) => setBackfillOverwrite(e.target.checked)}
+              size="small"
+            />
+          }
+          label="Sobrescribir si ya hay contenido"
+        />
+        <FormControlLabel
+          control={
+            <Switch
+              checked={backfillIncludeZip}
+              onChange={(e) => setBackfillIncludeZip(e.target.checked)}
+              size="small"
+            />
+          }
+          label="Incluir .zip"
+        />
+        <Button
+          variant="contained"
+          color="primary"
+          size="small"
+          startIcon={backfillRunning ? <CircularProgress size={16} /> : <PlayIcon />}
+          onClick={handleBackfill}
+          disabled={backfillRunning || !storagePath.trim()}
+        >
+          {backfillRunning ? 'Procesando...' : 'Ejecutar backfill'}
+        </Button>
+      </Box>
+
+      {backfillResult && (
+        <Box sx={{ mt: 2 }}>
+          <Alert
+            severity={backfillResult.errors && backfillResult.errors.length > 0 ? 'warning' : 'success'}
+            sx={{ mb: 1 }}
+          >
+            <AlertTitle>Backfill terminado</AlertTitle>
+            {backfillResult.xmls_applied} XML asignados de {backfillResult.xmls_found} encontrados ·{' '}
+            {backfillResult.pdfs_applied} PDF asignados de {backfillResult.pdfs_found} encontrados ·{' '}
+            {backfillResult.skipped_no_match} sin match · {backfillResult.skipped_existing} omitidos por
+            ya tener contenido
+          </Alert>
+
+          {backfillResult.examples && backfillResult.examples.length > 0 && (
+            <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 240 }}>
+              <Table size="small" stickyHeader>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Archivo</TableCell>
+                    <TableCell>Tipo</TableCell>
+                    <TableCell>Prefijo / Nº</TableCell>
+                    <TableCell>Tabla</TableCell>
+                    <TableCell>Estado</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {backfillResult.examples.map((ex, i) => (
+                    <TableRow key={i}>
+                      <TableCell sx={{ fontFamily: 'monospace', fontSize: 11 }}>{ex.file}</TableCell>
+                      <TableCell>{ex.kind.toUpperCase()}</TableCell>
+                      <TableCell>
+                        {ex.prefix}-{ex.number}
+                      </TableCell>
+                      <TableCell sx={{ fontFamily: 'monospace', fontSize: 11 }}>{ex.target_table}</TableCell>
+                      <TableCell>
+                        <Chip
+                          size="small"
+                          label={ex.status}
+                          color={
+                            ex.status === 'applied'
+                              ? 'success'
+                              : ex.status === 'skipped_existing'
+                              ? 'default'
+                              : 'warning'
+                          }
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+
+          {backfillResult.errors && backfillResult.errors.length > 0 && (
+            <Alert severity="warning" sx={{ mt: 1 }}>
+              <AlertTitle>{backfillResult.errors.length} error(es)</AlertTitle>
+              <Box sx={{ maxHeight: 160, overflow: 'auto', fontFamily: 'monospace', fontSize: 11 }}>
+                {backfillResult.errors.map((e, i) => (
                   <div key={i}>• {e}</div>
                 ))}
               </Box>

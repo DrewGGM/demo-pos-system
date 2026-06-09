@@ -180,7 +180,7 @@ const BackupSettings: React.FC = () => {
     try {
       const path = await wailsOpenFileDialog({
         title: 'Selecciona el archivo de backup',
-        filters: [{ displayName: 'Backups (*.sql.gz, *.db.gz, *.sql)', pattern: '*.sql.gz;*.db.gz;*.sql' }],
+        filters: [{ displayName: 'Backups (*.sql.gz, *.sql, *.backup, *.dump, *.db.gz)', pattern: '*.sql.gz;*.sql;*.backup;*.dump;*.pgdump;*.db.gz' }],
       });
       if (!path) return; // user cancelled
       setRestoreTarget({
@@ -495,7 +495,7 @@ const BackupSettings: React.FC = () => {
           <Typography variant="subtitle1" sx={{ fontWeight: 700, flex: 1 }}>
             Copias en el bucket
           </Typography>
-          <Tooltip title="Restaurar desde un archivo local (.sql.gz, .db.gz)">
+          <Tooltip title="Restaurar desde un archivo local (.sql.gz, .sql, .backup, .dump, .db.gz)">
             <span>
               <Button
                 variant="outlined"
