@@ -45,6 +45,7 @@ import {
   BackupConfig,
   BackupInfo,
 } from '../../services/wailsBackupService';
+import ApidianMigration from './ApidianMigration';
 
 // Wails runtime exposes a native file picker. We dynamically dereference the
 // global so the page also works in pure-Vite demo mode (where window.runtime
@@ -612,6 +613,12 @@ const BackupSettings: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Migration wizard from a legacy apidian MySQL dump. Kept inside the
+          backups tab because the workflow is "first take a safety backup,
+          then migrate, then verify" — operators reach for both tools at the
+          same time. */}
+      <ApidianMigration />
     </Box>
   );
 };
