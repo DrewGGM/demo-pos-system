@@ -24,7 +24,6 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
-  DialogContentText,
   DialogActions,
 } from '@mui/material';
 import {
@@ -79,8 +78,20 @@ const BackupSettings: React.FC = () => {
     source: 'bucket' | 'file';
     label: string; // shown in the dialog
     payload: string; // bucket key or local file path
+    backupDate: string | null; // ISO timestamp; nullable for local files w/o LastModified
   } | null>(null);
   const [restoring, setRestoring] = useState(false);
+  // Pre-restore impact (counts of rows that would be lost since backup date).
+  // Refreshed every time the dialog opens.
+  const [restoreImpact, setRestoreImpact] = useState<{
+    sales_since: number;
+    orders_since: number;
+    payments_since: number;
+    invoices_since: number;
+    cash_ops: number;
+    total: number;
+  } | null>(null);
+  const [restoreConfirmText, setRestoreConfirmText] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -164,12 +175,37 @@ const BackupSettings: React.FC = () => {
   // Restore handlers. We split "pick the source" from "actually restore" so
   // both bucket entries and local files go through the same confirmation
   // modal — restore is destructive and we want one obvious chokepoint.
+  // Probe the backend for "how many sales/orders/etc happened AFTER this
+  // backup was taken" — that's exactly what the operator is about to lose.
+  // For local files we don't know the backup's vintage, so we use 24h ago
+  // as a conservative default (the typical "I want to roll back today's
+  // mess" scenario).
+  const loadImpact = async (backupDateISO: string | null) => {
+    const probeISO = backupDateISO || new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+    try {
+      const impact = await wailsBackupService.assessRestoreImpact(probeISO);
+      setRestoreImpact({
+        sales_since: impact.sales_since,
+        orders_since: impact.orders_since,
+        payments_since: impact.payments_since,
+        invoices_since: impact.invoices_since,
+        cash_ops: impact.cash_ops,
+        total: impact.total,
+      });
+    } catch {
+      setRestoreImpact(null);
+    }
+  };
+
   const requestBucketRestore = (b: BackupInfo) => {
+    setRestoreConfirmText('');
     setRestoreTarget({
       source: 'bucket',
       label: `${b.key} (${formatBytes(b.size)})`,
       payload: b.key,
+      backupDate: b.last_modified,
     });
+    void loadImpact(b.last_modified);
   };
 
   const requestLocalRestore = async () => {
@@ -183,11 +219,14 @@ const BackupSettings: React.FC = () => {
         filters: [{ displayName: 'Backups (*.sql.gz, *.sql, *.backup, *.dump, *.db.gz)', pattern: '*.sql.gz;*.sql;*.backup;*.dump;*.pgdump;*.db.gz' }],
       });
       if (!path) return; // user cancelled
+      setRestoreConfirmText('');
       setRestoreTarget({
         source: 'file',
         label: path,
         payload: path,
+        backupDate: null,
       });
+      void loadImpact(null);
     } catch (err: any) {
       toast.error(err?.message || 'No se pudo abrir el selector');
     }
@@ -195,6 +234,10 @@ const BackupSettings: React.FC = () => {
 
   const confirmRestore = async () => {
     if (!restoreTarget) return;
+    if (restoreConfirmText.trim().toUpperCase() !== 'RESTAURAR') {
+      toast.error('Escribe RESTAURAR para confirmar');
+      return;
+    }
     setRestoring(true);
     try {
       const result =
@@ -204,18 +247,37 @@ const BackupSettings: React.FC = () => {
 
       if (result.error) {
         toast.error(`Restore falló: ${result.error}`, { autoClose: 12000 });
-      } else {
-        toast.success(
-          `Restore completado (${formatBytes(result.bytes_in)}). ${
-            result.pre_backup_key ? 'Copia previa guardada en ' + result.pre_backup_key : ''
-          }`,
-          { autoClose: 12000 },
-        );
+        setRestoring(false);
+        return;
       }
+
+      toast.success(
+        `Restore completado (${formatBytes(result.bytes_in)}). ${
+          result.pre_backup_key ? 'Copia previa guardada en ' + result.pre_backup_key : ''
+        } Reiniciando la app...`,
+        { autoClose: 6000 },
+      );
       setRestoreTarget(null);
+      setRestoreImpact(null);
+
+      // The DB schema and data are now whatever the backup carried — the
+      // SPA's redux store, cached IDs, and the in-flight queries are all
+      // stale. The backend already recycled the gorm pool; here we trigger
+      // a hard reload of the renderer so React state and wails bindings
+      // re-fetch everything against the freshly restored DB.
+      if (result.requires_reload) {
+        const wailsRuntime = (window as any).runtime;
+        setTimeout(() => {
+          if (wailsRuntime?.WindowReload) {
+            wailsRuntime.WindowReload();
+          } else {
+            // Browser dev mode fallback.
+            window.location.reload();
+          }
+        }, 1200);
+      }
     } catch (err: any) {
       toast.error(err?.message || 'No se pudo restaurar');
-    } finally {
       setRestoring(false);
     }
   };
@@ -566,15 +628,54 @@ const BackupSettings: React.FC = () => {
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <WarningIcon color="warning" />
-          ¿Restaurar la base de datos?
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'error.main' }}>
+          <WarningIcon color="error" />
+          Operación destructiva
         </DialogTitle>
         <DialogContent>
-          <DialogContentText component="div">
-            <Typography variant="body2" sx={{ mb: 1 }}>
-              Vas a <b>reemplazar la base de datos actual</b> con el contenido de:
-            </Typography>
+          <Box component="div">
+            <Alert severity="error" variant="filled" sx={{ mb: 2 }}>
+              <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                Vas a <u>reemplazar completamente</u> la base de datos actual.
+              </Typography>
+              <Typography variant="caption" sx={{ display: 'block', mt: 0.5 }}>
+                Toda la información posterior a la fecha del backup se perderá
+                (ventas, órdenes, pagos, facturas DIAN, movimientos de caja).
+              </Typography>
+            </Alert>
+
+            {/* Fecha del backup en grande para que sea imposible no leerla */}
+            {restoreTarget?.backupDate ? (
+              <Box
+                sx={{
+                  p: 2,
+                  mb: 2,
+                  borderRadius: 1,
+                  border: '2px solid',
+                  borderColor: 'warning.main',
+                  bgcolor: 'warning.lighter',
+                }}
+              >
+                <Typography variant="caption" color="text.secondary">
+                  Fecha del backup que se va a restaurar
+                </Typography>
+                <Typography variant="h6" sx={{ fontWeight: 700, color: 'warning.dark' }}>
+                  {new Date(restoreTarget.backupDate).toLocaleString('es-CO', {
+                    dateStyle: 'full',
+                    timeStyle: 'short',
+                  })}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Todo lo que pasó después de esta fecha y hora dejará de existir.
+                </Typography>
+              </Box>
+            ) : (
+              <Alert severity="warning" sx={{ mb: 2 }}>
+                Archivo local sin fecha conocida. La advertencia de impacto usa las últimas 24 horas
+                como referencia conservadora — el restore real puede llevar la BD aún más atrás.
+              </Alert>
+            )}
+
             <Box
               sx={{
                 p: 1,
@@ -588,25 +689,75 @@ const BackupSettings: React.FC = () => {
             >
               {restoreTarget?.label}
             </Box>
-            <Alert severity="warning" sx={{ mb: 1 }}>
-              Antes de aplicar el restore se crea automáticamente una <b>copia de seguridad
-              del estado actual</b> en <code>data/pre-restore-backups/</code> por si algo sale mal.
+
+            {/* Impacto: qué cantidades exactas se borran */}
+            {restoreImpact && (
+              <Box
+                sx={{
+                  p: 1.5,
+                  mb: 2,
+                  borderRadius: 1,
+                  bgcolor: restoreImpact.total === 0 ? 'success.lighter' : 'error.lighter',
+                  border: '1px solid',
+                  borderColor: restoreImpact.total === 0 ? 'success.main' : 'error.main',
+                }}
+              >
+                <Typography variant="body2" sx={{ fontWeight: 700, mb: 0.5 }}>
+                  Datos que se perderán:
+                </Typography>
+                {restoreImpact.total === 0 ? (
+                  <Typography variant="body2" color="success.dark">
+                    No hay actividad nueva desde la fecha del backup. El restore es seguro.
+                  </Typography>
+                ) : (
+                  <Box component="ul" sx={{ pl: 2.5, m: 0 }}>
+                    {restoreImpact.sales_since > 0 && <li>{restoreImpact.sales_since} ventas</li>}
+                    {restoreImpact.orders_since > 0 && <li>{restoreImpact.orders_since} órdenes</li>}
+                    {restoreImpact.payments_since > 0 && <li>{restoreImpact.payments_since} pagos</li>}
+                    {restoreImpact.invoices_since > 0 && (
+                      <li>{restoreImpact.invoices_since} facturas electrónicas DIAN</li>
+                    )}
+                    {restoreImpact.cash_ops > 0 && (
+                      <li>{restoreImpact.cash_ops} movimientos de caja</li>
+                    )}
+                  </Box>
+                )}
+              </Box>
+            )}
+
+            <Alert severity="info" sx={{ mb: 2 }}>
+              Antes de aplicar se guarda automáticamente una <b>copia del estado actual</b> en{' '}
+              <code>data/pre-restore-backups/</code>. Si te arrepientes, restaura ese archivo después.
             </Alert>
-            <Typography variant="body2" color="text.secondary">
-              Si tienes otros usuarios conectados, ciérralos antes de continuar. La operación
-              puede tardar varios segundos dependiendo del tamaño del backup.
+
+            <Typography variant="body2" sx={{ mb: 1, fontWeight: 600 }}>
+              Para continuar escribe <code>RESTAURAR</code> en mayúsculas:
             </Typography>
-          </DialogContentText>
+            <TextField
+              fullWidth
+              size="small"
+              autoFocus
+              value={restoreConfirmText}
+              onChange={(e) => setRestoreConfirmText(e.target.value)}
+              placeholder="RESTAURAR"
+              disabled={restoring}
+              sx={{ mb: 1 }}
+            />
+            <Typography variant="caption" color="text.secondary">
+              La app se reiniciará automáticamente al terminar. Cierra cualquier sesión activa en otros
+              dispositivos antes de continuar.
+            </Typography>
+          </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setRestoreTarget(null)} disabled={restoring}>
+          <Button onClick={() => { setRestoreTarget(null); setRestoreImpact(null); }} disabled={restoring}>
             Cancelar
           </Button>
           <Button
             variant="contained"
-            color="warning"
+            color="error"
             onClick={confirmRestore}
-            disabled={restoring}
+            disabled={restoring || restoreConfirmText.trim().toUpperCase() !== 'RESTAURAR'}
             startIcon={restoring ? <CircularProgress size={16} /> : <RestoreIcon />}
           >
             {restoring ? 'Restaurando...' : 'Restaurar'}

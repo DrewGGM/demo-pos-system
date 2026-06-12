@@ -106,6 +106,21 @@ class WailsBackupService {
     if (!W) throw new Error('BackupService no disponible en modo demo');
     return (await W.RestoreFromLocalFile(path)) as RestoreResult;
   }
+
+  async assessRestoreImpact(backupDateISO: string): Promise<PreRestoreImpact> {
+    if (!W) {
+      return {
+        backup_date: backupDateISO,
+        sales_since: 0,
+        orders_since: 0,
+        payments_since: 0,
+        invoices_since: 0,
+        cash_ops: 0,
+        total: 0,
+      };
+    }
+    return (await W.AssessRestoreImpact(backupDateISO)) as PreRestoreImpact;
+  }
 }
 
 export interface RestoreResult {
@@ -115,6 +130,17 @@ export interface RestoreResult {
   bytes_in: number;
   pre_backup_key?: string;
   error?: string;
+  requires_reload: boolean;
+}
+
+export interface PreRestoreImpact {
+  backup_date: string;
+  sales_since: number;
+  orders_since: number;
+  payments_since: number;
+  invoices_since: number;
+  cash_ops: number;
+  total: number;
 }
 
 export const wailsBackupService = new WailsBackupService();
