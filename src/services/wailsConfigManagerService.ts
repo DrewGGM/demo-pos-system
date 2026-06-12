@@ -3,7 +3,6 @@ import { getAll, getById, create, update, remove, generateOrderNumber, generateS
 // Re-export types — in demo mode these are plain objects
 export type AppConfig = any;
 export type DatabaseConfig = any;
-export type MySQLConfig = any;
 
 export interface ExistingConfigData {
   has_config: boolean;
@@ -98,20 +97,4 @@ export const wailsConfigManagerService = {
     });
   },
 
-  // DIAN MySQL Database Configuration — no-ops in demo
-  async testMySQLConnection(mysqlConfig: MySQLConfig): Promise<void> {
-    // always succeeds in demo
-  },
-
-  async saveDIANDatabaseConfig(mysqlConfig: MySQLConfig): Promise<void> {
-    setStore('dian_database_config', mysqlConfig);
-  },
-
-  async getDIANDatabaseConfig(): Promise<MySQLConfig | null> {
-    return getStore<any>('dian_database_config', null);
-  },
-
-  async removeDIANDatabaseConfig(): Promise<void> {
-    setStore('dian_database_config', null);
-  },
 };

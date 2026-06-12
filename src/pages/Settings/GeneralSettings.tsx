@@ -151,16 +151,6 @@ export const defaultModuleConfig: ModuleConfig[] = [
     category: 'optional',
     status: 'beta',
   },
-  {
-    id: 'bd_dian',
-    name: 'BD DIAN',
-    description: 'Gestión base paramétrica',
-    icon: <StorageIcon />,
-    enabled: false,
-    category: 'optional',
-    status: 'production',
-    licenseFeature: 'dian_invoicing',
-  },
   // Development modules
   {
     id: 'rappi',

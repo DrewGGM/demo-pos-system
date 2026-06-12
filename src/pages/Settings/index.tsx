@@ -91,7 +91,6 @@ import PaymentMethodsSettings from './PaymentMethodsSettings';
 import OrderTypesSettings from './OrderTypesSettings';
 import CustomPagesSettings from './CustomPagesSettings';
 import RappiSettings from './RappiSettings';
-import DIANDatabaseSettings from './DIANDatabaseSettings';
 import MCPSettings from './MCPSettings';
 import NetworkSettings from './NetworkSettings';
 import BoldSettings from './BoldSettings';
@@ -1527,7 +1526,6 @@ const Settings: React.FC = () => {
           {isModuleEnabled('notificaciones', moduleConfig, licenseModules) && <Tab icon={<NotificationsIcon />} label="Notificaciones" />}
           {isModuleEnabled('sistema', moduleConfig, licenseModules) && <Tab icon={<SecurityIcon />} label="Sistema" />}
           {isModuleEnabled('websocket', moduleConfig, licenseModules) && <Tab icon={<WifiIcon />} label="WebSocket" />}
-          {isModuleEnabled('bd_dian', moduleConfig, licenseModules) && <Tab icon={<StorageIcon />} label="BD DIAN" />}
           {isModuleEnabled('ia_mcp', moduleConfig, licenseModules) && <Tab icon={<SmartToyIcon />} label="IA (MCP)" />}
           {isModuleEnabled('red_puertos', moduleConfig, licenseModules) && <Tab icon={<WifiIcon />} label="Red y Puertos" />}
           {/* Backups en la nube — siempre visible. Es una capacidad transversal
@@ -1552,7 +1550,7 @@ const Settings: React.FC = () => {
         {/* The order is: General(0), Empresa, Facturacion, MetodosPago, TiposPedido, PaginasPOS, Impresion, GoogleSheets, Rappi, Bold, Notificaciones, Sistema, WebSocket, BDDIAN, IAMCP */}
         {(() => {
           // Calculate tab indices for each module based on what's enabled
-          const moduleOrder = ['empresa', 'facturacion', 'metodos_pago', 'tipos_pedido', 'paginas_pos', 'impresion', 'google_sheets', 'rappi', 'bold', 'notificaciones', 'sistema', 'websocket', 'bd_dian', 'ia_mcp', 'red_puertos'];
+          const moduleOrder = ['empresa', 'facturacion', 'metodos_pago', 'tipos_pedido', 'paginas_pos', 'impresion', 'google_sheets', 'rappi', 'bold', 'notificaciones', 'sistema', 'websocket', 'ia_mcp', 'red_puertos'];
           // Backups and Theme are always-visible trailing tabs. Their indices
           // are computed from the count of enabled modules so they shift left
           // when modules are disabled.
@@ -3896,13 +3894,6 @@ const Settings: React.FC = () => {
               </Card>
             </Grid>
           </Grid>
-                </TabPanel>
-              )}
-
-              {/* DIAN Database Settings */}
-              {isModuleEnabled('bd_dian', moduleConfig, licenseModules) && (
-                <TabPanel value={selectedTab} index={tabIndices['bd_dian']}>
-                  <DIANDatabaseSettings />
                 </TabPanel>
               )}
 
