@@ -260,18 +260,25 @@ const BackupSettings: React.FC = () => {
       setRestoreTarget(null);
       setRestoreImpact(null);
 
-      // The DB schema and data are now whatever the backup carried — the
-      // SPA's redux store, cached IDs, and the in-flight queries are all
-      // stale. The backend already recycled the gorm pool; here we trigger
-      // a hard reload of the renderer so React state and wails bindings
-      // re-fetch everything against the freshly restored DB.
+      // The DB schema and data are now whatever the backup carried.
+      // WindowReload is not enough — backend services constructed at
+      // startup cache *gorm.DB handles and config snapshots, so after a
+      // mere renderer reload the wizard can briefly flash (because
+      // IsFirstRun() reads stale state) before things settle. Restarting
+      // the process re-bootstraps every service against the freshly
+      // restored DB, so the next launch is consistent.
       if (result.requires_reload) {
-        const wailsRuntime = (window as any).runtime;
         setTimeout(() => {
+          const restartFn = (window as any)?.go?.main?.App?.RestartApp;
+          if (typeof restartFn === 'function') {
+            restartFn();
+            return;
+          }
+          // Fallbacks: bundled runtime first, then browser dev mode.
+          const wailsRuntime = (window as any).runtime;
           if (wailsRuntime?.WindowReload) {
             wailsRuntime.WindowReload();
           } else {
-            // Browser dev mode fallback.
             window.location.reload();
           }
         }, 1200);
