@@ -274,12 +274,12 @@ export const defaultAppModules: AppModuleConfig[] = [
     licenseFeature: 'accounting',
   },
   {
-    id: 'autoservicio',
-    name: 'Autoservicio',
-    description: 'Modo autoservicio: tickets de turno, reset de contador, kiosko de pedidos',
+    id: 'shifts',
+    name: 'Autoservicio (Turnos)',
+    description: 'Cola visual de pedidos con número de turno grande. Activá para flujos de mostrador / kiosko con tickets de turno.',
     icon: <TicketIcon />,
     enabled: false,
-    backendKey: 'enable_self_service_module',
+    backendKey: 'enable_shifts_module',
     licenseFeature: 'self_service',
   },
   {
