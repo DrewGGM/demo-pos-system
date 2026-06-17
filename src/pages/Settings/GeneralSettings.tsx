@@ -96,6 +96,7 @@ export const defaultModuleConfig: ModuleConfig[] = [
   },
   {
     id: 'sistema',
+    licenseFeature: 'sistema',
     name: 'Sistema',
     description: 'Idioma, moneda, zona horaria',
     icon: <SecurityIcon />,
