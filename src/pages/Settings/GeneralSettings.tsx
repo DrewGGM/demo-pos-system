@@ -36,6 +36,7 @@ import {
   TrendingUp as TrendingUpIcon,
   AccountBalance as AccountBalanceIcon,
   Apps as AppsIcon,
+  ConfirmationNumber as TicketIcon,
 } from '@mui/icons-material';
 import { wailsConfigService } from '../../services/wailsConfigService';
 import { wailsLicenseService } from '../../services/wailsLicenseService';
@@ -269,6 +270,16 @@ export const defaultAppModules: AppModuleConfig[] = [
     icon: <AccountBalanceIcon />,
     enabled: false,
     backendKey: 'enable_accounting_module',
+    licenseFeature: 'accounting',
+  },
+  {
+    id: 'autoservicio',
+    name: 'Autoservicio',
+    description: 'Modo autoservicio: tickets de turno, reset de contador, kiosko de pedidos',
+    icon: <TicketIcon />,
+    enabled: false,
+    backendKey: 'enable_self_service_module',
+    licenseFeature: 'self_service',
   },
   {
     id: 'discounts',
