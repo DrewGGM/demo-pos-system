@@ -45,12 +45,7 @@ import {
   BackupInfo,
 } from '../../services/wailsBackupService';
 import ApidianMigration from './ApidianMigration';
-
-// Wails runtime exposes a native file picker. We dynamically dereference the
-// global so the page also works in pure-Vite demo mode (where window.runtime
-// doesn't exist) — the import button just stays disabled.
-const wailsOpenFileDialog: ((opts: any) => Promise<string>) | undefined =
-  (window as any).runtime?.OpenFileDialog;
+import { openFileDialog, isOpenFileDialogAvailable } from '../../lib/nativeDialog';
 
 // BackupSettings is the admin UI to configure automated database backups to
 // Cloudflare R2 (or any S3-compatible target).
@@ -209,12 +204,12 @@ const BackupSettings: React.FC = () => {
   };
 
   const requestLocalRestore = async () => {
-    if (!wailsOpenFileDialog) {
+    if (!isOpenFileDialogAvailable()) {
       toast.error('El selector de archivos sólo está disponible en la app instalada');
       return;
     }
     try {
-      const path = await wailsOpenFileDialog({
+      const path = await openFileDialog({
         title: 'Selecciona el archivo de backup',
         filters: [{ displayName: 'Backups (*.sql.gz, *.sql, *.backup, *.dump, *.db.gz)', pattern: '*.sql.gz;*.sql;*.backup;*.dump;*.pgdump;*.db.gz' }],
       });
@@ -571,7 +566,7 @@ const BackupSettings: React.FC = () => {
                 size="small"
                 startIcon={<UploadIcon />}
                 onClick={requestLocalRestore}
-                disabled={!wailsOpenFileDialog}
+                disabled={!isOpenFileDialogAvailable()}
               >
                 Importar archivo
               </Button>

@@ -38,11 +38,7 @@ import {
   MigrationSummary,
   BackfillResult,
 } from '../../services/wailsApidianMigrationService';
-
-// Native file picker comes from the Wails runtime. Unavailable in pure-Vite
-// demo mode — we disable the picker button when missing.
-const wailsOpenFileDialog: ((opts: any) => Promise<string>) | undefined =
-  (window as any).runtime?.OpenFileDialog;
+import { openFileDialog, isOpenFileDialogAvailable } from '../../lib/nativeDialog';
 
 // ApidianMigration is the wizard that walks an admin through importing a
 // MySQL dump of `apirestdian` into PosApp. Three steps:
@@ -75,12 +71,12 @@ const ApidianMigration: React.FC = () => {
   const steps = ['Seleccionar dump', 'Vista previa', 'Importar'];
 
   const handlePickFile = async () => {
-    if (!wailsOpenFileDialog) {
+    if (!isOpenFileDialogAvailable()) {
       toast.error('Selector de archivos sólo disponible en la app instalada');
       return;
     }
     try {
-      const path = await wailsOpenFileDialog({
+      const path = await openFileDialog({
         title: 'Selecciona el dump MySQL de apidian',
         filters: [{ displayName: 'MySQL dump (*.sql)', pattern: '*.sql' }],
       });
@@ -243,7 +239,7 @@ const ApidianMigration: React.FC = () => {
               startIcon={<UploadIcon />}
               variant="outlined"
               onClick={handlePickFile}
-              disabled={!wailsOpenFileDialog}
+              disabled={!isOpenFileDialogAvailable()}
             >
               Seleccionar archivo
             </Button>
