@@ -122,6 +122,33 @@ interface TabPanelProps {
   value: number;
 }
 
+// Stable, license-independent value for every Settings tab. See the parent
+// repo's frontend/src/pages/Settings/index.tsx for the explanation: MUI
+// auto-assigns Tab values from JSX child positions (compacting away
+// conditional children), but the dynamic tabIndices map skipped disabled
+// modules, so the two numberings drifted as soon as any module was hidden.
+// Pinning explicit values to both <Tab> and <TabPanel> keeps the wiring
+// idempotent regardless of which modules the operator/license hides.
+const TAB_VALUES = {
+  general: 0,
+  empresa: 1,
+  facturacion: 2,
+  metodos_pago: 3,
+  tipos_pedido: 4,
+  paginas_pos: 5,
+  impresion: 6,
+  google_sheets: 7,
+  rappi: 8,
+  bold: 9,
+  notificaciones: 10,
+  sistema: 11,
+  websocket: 12,
+  ia_mcp: 13,
+  red_puertos: 14,
+  backups: 15,
+  tema: 16,
+} as const;
+
 const TabPanel: React.FC<TabPanelProps> = ({ children, value, index, ...other }) => {
   return (
     <div
@@ -327,7 +354,7 @@ const Settings: React.FC = () => {
 
   // Auto-refresh WebSocket status every 5 seconds when on WebSocket tab
   useEffect(() => {
-    if (selectedTab !== 6) return; // Only refresh when on WebSocket tab
+    if (selectedTab !== TAB_VALUES.websocket) return; // Only refresh when on WebSocket tab
 
     const interval = setInterval(() => {
       loadWebSocketStatus();
@@ -1513,25 +1540,25 @@ const Settings: React.FC = () => {
           scrollButtons="auto"
           sx={{ borderBottom: 1, borderColor: 'divider' }}
         >
-          <Tab icon={<SettingsIcon />} label="General" />
-          {isModuleEnabled('empresa', moduleConfig, licenseModules) && <Tab icon={<BusinessIcon />} label="Empresa" />}
-          {isModuleEnabled('facturacion', moduleConfig, licenseModules) && <Tab icon={<ReceiptIcon />} label="Facturación" />}
-          {isModuleEnabled('metodos_pago', moduleConfig, licenseModules) && <Tab icon={<PaymentIcon />} label="Métodos de Pago" />}
-          {isModuleEnabled('tipos_pedido', moduleConfig, licenseModules) && <Tab icon={<CategoryIcon />} label="Tipos de Pedido" />}
-          {isModuleEnabled('paginas_pos', moduleConfig, licenseModules) && <Tab icon={<ViewModuleIcon />} label="Páginas POS" />}
-          {isModuleEnabled('impresion', moduleConfig, licenseModules) && <Tab icon={<PrintIcon />} label="Impresión" />}
-          {isModuleEnabled('google_sheets', moduleConfig, licenseModules) && <Tab icon={<CloudSyncIcon />} label="Google Sheets" />}
-          {isModuleEnabled('rappi', moduleConfig, licenseModules) && <Tab icon={<SmartphoneIcon />} label="Rappi POS" />}
-          {isModuleEnabled('bold', moduleConfig, licenseModules) && <Tab icon={<PaymentIcon />} label="Bold" />}
-          {isModuleEnabled('notificaciones', moduleConfig, licenseModules) && <Tab icon={<NotificationsIcon />} label="Notificaciones" />}
-          {isModuleEnabled('sistema', moduleConfig, licenseModules) && <Tab icon={<SecurityIcon />} label="Sistema" />}
-          {isModuleEnabled('websocket', moduleConfig, licenseModules) && <Tab icon={<WifiIcon />} label="WebSocket" />}
-          {isModuleEnabled('ia_mcp', moduleConfig, licenseModules) && <Tab icon={<SmartToyIcon />} label="IA (MCP)" />}
-          {isModuleEnabled('red_puertos', moduleConfig, licenseModules) && <Tab icon={<WifiIcon />} label="Red y Puertos" />}
+          <Tab value={TAB_VALUES.general} icon={<SettingsIcon />} label="General" />
+          {isModuleEnabled('empresa', moduleConfig, licenseModules) && <Tab value={TAB_VALUES.empresa} icon={<BusinessIcon />} label="Empresa" />}
+          {isModuleEnabled('facturacion', moduleConfig, licenseModules) && <Tab value={TAB_VALUES.facturacion} icon={<ReceiptIcon />} label="Facturación" />}
+          {isModuleEnabled('metodos_pago', moduleConfig, licenseModules) && <Tab value={TAB_VALUES.metodos_pago} icon={<PaymentIcon />} label="Métodos de Pago" />}
+          {isModuleEnabled('tipos_pedido', moduleConfig, licenseModules) && <Tab value={TAB_VALUES.tipos_pedido} icon={<CategoryIcon />} label="Tipos de Pedido" />}
+          {isModuleEnabled('paginas_pos', moduleConfig, licenseModules) && <Tab value={TAB_VALUES.paginas_pos} icon={<ViewModuleIcon />} label="Páginas POS" />}
+          {isModuleEnabled('impresion', moduleConfig, licenseModules) && <Tab value={TAB_VALUES.impresion} icon={<PrintIcon />} label="Impresión" />}
+          {isModuleEnabled('google_sheets', moduleConfig, licenseModules) && <Tab value={TAB_VALUES.google_sheets} icon={<CloudSyncIcon />} label="Google Sheets" />}
+          {isModuleEnabled('rappi', moduleConfig, licenseModules) && <Tab value={TAB_VALUES.rappi} icon={<SmartphoneIcon />} label="Rappi POS" />}
+          {isModuleEnabled('bold', moduleConfig, licenseModules) && <Tab value={TAB_VALUES.bold} icon={<PaymentIcon />} label="Bold" />}
+          {isModuleEnabled('notificaciones', moduleConfig, licenseModules) && <Tab value={TAB_VALUES.notificaciones} icon={<NotificationsIcon />} label="Notificaciones" />}
+          {isModuleEnabled('sistema', moduleConfig, licenseModules) && <Tab value={TAB_VALUES.sistema} icon={<SecurityIcon />} label="Sistema" />}
+          {isModuleEnabled('websocket', moduleConfig, licenseModules) && <Tab value={TAB_VALUES.websocket} icon={<WifiIcon />} label="WebSocket" />}
+          {isModuleEnabled('ia_mcp', moduleConfig, licenseModules) && <Tab value={TAB_VALUES.ia_mcp} icon={<SmartToyIcon />} label="IA (MCP)" />}
+          {isModuleEnabled('red_puertos', moduleConfig, licenseModules) && <Tab value={TAB_VALUES.red_puertos} icon={<WifiIcon />} label="Red y Puertos" />}
           {/* Backups en la nube — siempre visible. Es una capacidad transversal
               (no específica de un módulo), así que NO va detrás de isModuleEnabled. */}
-          <Tab icon={<CloudUploadIcon />} label="Backups" />
-          <Tab icon={<PaletteIcon />} label="Tema" />
+          <Tab value={TAB_VALUES.backups} icon={<CloudUploadIcon />} label="Backups" />
+          <Tab value={TAB_VALUES.tema} icon={<PaletteIcon />} label="Tema" />
         </Tabs>
 
         {/* General Settings - Always Tab 0 */}
@@ -1546,25 +1573,12 @@ const Settings: React.FC = () => {
           />
         </TabPanel>
 
-        {/* Tab indices are computed dynamically based on enabled modules */}
-        {/* The order is: General(0), Empresa, Facturacion, MetodosPago, TiposPedido, PaginasPOS, Impresion, GoogleSheets, Rappi, Bold, Notificaciones, Sistema, WebSocket, BDDIAN, IAMCP */}
+        {/* Tab/TabPanel pairs use the stable TAB_VALUES map declared at module
+            scope, so disabling a module never shifts another's index. */}
         {(() => {
-          // Calculate tab indices for each module based on what's enabled
-          const moduleOrder = ['empresa', 'facturacion', 'metodos_pago', 'tipos_pedido', 'paginas_pos', 'impresion', 'google_sheets', 'rappi', 'bold', 'notificaciones', 'sistema', 'websocket', 'ia_mcp', 'red_puertos'];
-          // Backups and Theme are always-visible trailing tabs. Their indices
-          // are computed from the count of enabled modules so they shift left
-          // when modules are disabled.
-          const trailingStart = moduleOrder.reduce((idx, mod) => isModuleEnabled(mod, moduleConfig) ? idx + 1 : idx, 1);
-          const backupTabIndex = trailingStart;
-          const themeTabIndex = trailingStart + 1;
-          const tabIndices: Record<string, number> = {};
-          let currentIndex = 1; // Start at 1 since General is 0
-          moduleOrder.forEach(moduleId => {
-            if (isModuleEnabled(moduleId, moduleConfig)) {
-              tabIndices[moduleId] = currentIndex++;
-            }
-          });
-
+          const tabIndices = TAB_VALUES;
+          const backupTabIndex = TAB_VALUES.backups;
+          const themeTabIndex = TAB_VALUES.tema;
           return (
             <>
               {/* Empresa Settings */}
