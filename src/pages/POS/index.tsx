@@ -38,6 +38,7 @@ import {
   Save as SaveIcon,
   DeliveryDining as DeliveryIcon,
   SplitscreenOutlined as SplitIcon,
+  PriceChange as PriceChangeIcon,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 
@@ -113,6 +114,17 @@ const POS: React.FC = () => {
   const [deliveryDialogOpen, setDeliveryDialogOpen] = useState(false);
   const [splitBillDialogOpen, setSplitBillDialogOpen] = useState(false);
   const [discountDialogOpen, setDiscountDialogOpen] = useState(false);
+  // Price-list state mirrors the production POS. Demo data lives in
+  // localStorage via demoPriceListService; the lookup shape matches the
+  // real Wails binding so the toolbar pill, picker dialog, and cart
+  // recalc are copy-pasteable from frontend/.
+  const [priceLists, setPriceLists] = useState<Array<{ id: number; name: string; markup_pct: number; is_default: boolean; is_active: boolean }>>([]);
+  const [activePriceListId, setActivePriceListId] = useState<number>(() => {
+    const stored = parseInt(localStorage.getItem('pos.activePriceListId') || '0', 10);
+    return Number.isFinite(stored) ? stored : 0;
+  });
+  const [priceListDialogOpen, setPriceListDialogOpen] = useState(false);
+  const [priceOverrides, setPriceOverrides] = useState<Record<number, Record<number, number>>>({});
   // Discount state. discountRaw is the cashier's input (5 means 5% or $5 depending on type);
   // discountAmount in orderTotals is the resolved absolute value used for display and totals.
   // The backend re-applies the same normalization, so the source of truth on the wire is
@@ -156,9 +168,73 @@ const POS: React.FC = () => {
       loadPrinterSettings();
       loadInvoiceLimitStatus();
       loadCombos();
+      loadPriceLists();
     }, 100);
     return () => clearTimeout(timer);
   }, []);
+
+  // Persist the cashier's active price list across page reloads.
+  useEffect(() => {
+    localStorage.setItem('pos.activePriceListId', String(activePriceListId));
+  }, [activePriceListId]);
+
+  // Load PriceList catalog + overrides into local state. Service shape
+  // matches the production Wails binding so the cart helpers below stay
+  // identical between frontend/ and demo-frontend/.
+  const loadPriceLists = async () => {
+    const svc = (window as any)?.go?.services?.PriceListService;
+    if (!svc?.ListActive) return;
+    try {
+      const data = await svc.ListActive();
+      const lists = (data || []) as Array<{ id: number; name: string; markup_pct: number; is_default: boolean; is_active: boolean }>;
+      setPriceLists(lists);
+      if (!activePriceListId) {
+        const def = lists.find((l) => l.is_default) || lists[0];
+        if (def) setActivePriceListId(def.id);
+      }
+      if (svc.GetAllOverrides) {
+        try {
+          const overrideRows = ((await svc.GetAllOverrides()) || []) as Array<{
+            product_id: number; price_list_id: number; price: number;
+          }>;
+          const grouped: Record<number, Record<number, number>> = {};
+          for (const row of overrideRows) {
+            if (!grouped[row.price_list_id]) grouped[row.price_list_id] = {};
+            grouped[row.price_list_id][row.product_id] = row.price;
+          }
+          setPriceOverrides(grouped);
+        } catch { /* overrides are non-critical */ }
+      }
+    } catch { /* feature is non-critical */ }
+  };
+
+  // applyPriceList: override wins over markup, both are rounded to two
+  // decimals. productId optional so callers without a product handle
+  // (modifier price recompute) still get sensible behavior.
+  const applyPriceList = useCallback((basePrice: number, productId?: number): number => {
+    if (!basePrice) return 0;
+    if (productId !== undefined) {
+      const override = priceOverrides[activePriceListId]?.[productId];
+      if (override !== undefined) return override;
+    }
+    const list = priceLists.find((l) => l.id === activePriceListId);
+    if (!list || list.markup_pct === 0) return basePrice;
+    const adjusted = basePrice * (1 + list.markup_pct / 100);
+    return Math.round(adjusted * 100) / 100;
+  }, [priceLists, activePriceListId, priceOverrides]);
+
+  // When the cashier switches lists mid-cart, recompute every line off
+  // product.price so successive switches don't compound the markup.
+  useEffect(() => {
+    setOrderItems((items) =>
+      items.map((item) => {
+        const base = item.product?.price ?? item.unit_price ?? 0;
+        const unit = applyPriceList(base, item.product_id);
+        return { ...item, unit_price: unit, subtotal: unit * (item.quantity || 1) };
+      }),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [applyPriceList]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -565,13 +641,14 @@ const POS: React.FC = () => {
       return;
     }
 
+    const listAdjustedPrice = applyPriceList(product.price, product.id);
     const newItem: OrderItem = {
       id: Date.now(),
       product_id: product.id!,
       product: product,
       quantity: 1,
-      unit_price: product.price,
-      subtotal: product.price,
+      unit_price: listAdjustedPrice,
+      subtotal: listAdjustedPrice,
       notes: '',
       modifiers: [],
     };
@@ -609,13 +686,14 @@ const POS: React.FC = () => {
       is_combo: true,
     };
 
+    const listAdjustedComboPrice = applyPriceList(combo.price, combo.id);
     const newItem: OrderItem = {
       id: Date.now(),
       product_id: combo.id!,
       product: comboAsProduct,
       quantity: 1,
-      unit_price: combo.price,
-      subtotal: combo.price,
+      unit_price: listAdjustedComboPrice,
+      subtotal: listAdjustedComboPrice,
       notes: '',
       modifiers: [],
       is_combo: true,
@@ -1274,6 +1352,18 @@ const POS: React.FC = () => {
           >
             {selectedCustomer ? selectedCustomer.name : 'Cliente'}
           </Button>
+          {priceLists.length > 1 && (
+            <Button
+              startIcon={<PriceChangeIcon />}
+              size="small"
+              variant={priceLists.find((l) => l.id === activePriceListId)?.is_default === false ? 'contained' : 'outlined'}
+              color={priceLists.find((l) => l.id === activePriceListId)?.is_default === false ? 'secondary' : 'inherit'}
+              onClick={() => setPriceListDialogOpen(true)}
+              title="Cambiar lista de precios para los productos del carrito"
+            >
+              {priceLists.find((l) => l.id === activePriceListId)?.name || 'Precios'}
+            </Button>
+          )}
           <Button
             startIcon={<DiscountIcon />}
             size="small"
@@ -1693,6 +1783,57 @@ const POS: React.FC = () => {
           >
             Guardar
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Price List Selection Dialog */}
+      <Dialog
+        open={priceListDialogOpen}
+        onClose={() => setPriceListDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Lista de Precios</DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, pt: 2 }}>
+            {priceLists.map((list) => {
+              const isSelected = list.id === activePriceListId;
+              const markupLabel =
+                list.markup_pct === 0
+                  ? 'Sin ajuste'
+                  : list.markup_pct > 0
+                  ? `+${list.markup_pct}% sobre el precio base`
+                  : `${list.markup_pct}% sobre el precio base`;
+              return (
+                <Button
+                  key={list.id}
+                  variant={isSelected ? 'contained' : 'outlined'}
+                  size="large"
+                  startIcon={<PriceChangeIcon />}
+                  onClick={() => {
+                    setActivePriceListId(list.id);
+                    setPriceListDialogOpen(false);
+                  }}
+                  sx={{ justifyContent: 'flex-start', py: 2, textAlign: 'left' }}
+                >
+                  <Box>
+                    <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                      {list.name}
+                      {list.is_default && (
+                        <Chip label="Default" size="small" sx={{ ml: 1, height: 18 }} />
+                      )}
+                    </Typography>
+                    <Typography variant="caption" color={isSelected ? 'inherit' : 'text.secondary'}>
+                      {markupLabel}
+                    </Typography>
+                  </Box>
+                </Button>
+              );
+            })}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPriceListDialogOpen(false)}>Cancelar</Button>
         </DialogActions>
       </Dialog>
 
