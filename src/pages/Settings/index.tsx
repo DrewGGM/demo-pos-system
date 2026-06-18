@@ -68,6 +68,7 @@ import {
   Smartphone as SmartphoneIcon,
   SmartToy as SmartToyIcon,
   Settings as SettingsIcon,
+  PriceChange as PriceChangeIcon,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import { wailsDianService } from '../../services/wailsDianService';
@@ -96,6 +97,7 @@ import NetworkSettings from './NetworkSettings';
 import BoldSettings from './BoldSettings';
 import ThemeSettings from './ThemeSettings';
 import BackupSettings from './BackupSettings';
+import PriceListsSettings from './PriceListsSettings';
 import GeneralSettings, {
   ModuleConfig,
   loadModuleConfig,
@@ -145,8 +147,9 @@ const TAB_VALUES = {
   websocket: 12,
   ia_mcp: 13,
   red_puertos: 14,
-  backups: 15,
-  tema: 16,
+  precios: 15,
+  backups: 16,
+  tema: 17,
 } as const;
 
 const TabPanel: React.FC<TabPanelProps> = ({ children, value, index, ...other }) => {
@@ -1557,6 +1560,7 @@ const Settings: React.FC = () => {
           {isModuleEnabled('red_puertos', moduleConfig, licenseModules) && <Tab value={TAB_VALUES.red_puertos} icon={<WifiIcon />} label="Red y Puertos" />}
           {/* Backups en la nube — siempre visible. Es una capacidad transversal
               (no específica de un módulo), así que NO va detrás de isModuleEnabled. */}
+          <Tab value={TAB_VALUES.precios} icon={<PriceChangeIcon />} label="Listas de Precios" />
           <Tab value={TAB_VALUES.backups} icon={<CloudUploadIcon />} label="Backups" />
           <Tab value={TAB_VALUES.tema} icon={<PaletteIcon />} label="Tema" />
         </Tabs>
@@ -3938,6 +3942,11 @@ const Settings: React.FC = () => {
                   <NetworkSettings />
                 </TabPanel>
               )}
+
+              {/* Listas de Precios — always visible */}
+              <TabPanel value={selectedTab} index={TAB_VALUES.precios}>
+                <PriceListsSettings />
+              </TabPanel>
 
               {/* Backups en la nube — always visible */}
               <TabPanel value={selectedTab} index={backupTabIndex}>

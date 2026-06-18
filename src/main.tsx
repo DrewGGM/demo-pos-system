@@ -16,9 +16,15 @@ import { WebSocketProvider } from './contexts/WebSocketContext';
 import { DIANModeProvider } from './contexts/DIANModeContext';
 import { NotificationProvider } from './contexts/NotificationContext';
 import { initDemoData } from './services/mockBackend';
+import { installDemoPriceListService } from './services/demoPriceListService';
 import './index.css';
 
 initDemoData();
+// Plug the localStorage-backed PriceList mock into the window.go.services
+// shape the shared PriceListsSettings / POS components dereference. Doing
+// this once at bootstrap (not from inside React) keeps the binding around
+// for every component without coupling them to the demo's mock layer.
+installDemoPriceListService();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
