@@ -125,6 +125,13 @@ const POS: React.FC = () => {
   });
   const [priceListDialogOpen, setPriceListDialogOpen] = useState(false);
   const [priceOverrides, setPriceOverrides] = useState<Record<number, Record<number, number>>>({});
+  // Mirror the production POS module gates so the demo behaves the same
+  // when an operator toggles Configuración → General → Descuentos /
+  // Autoservicio off. RestaurantConfig.enable_shifts_module = false hides
+  // self_service from the order-type picker; enable_discounts_module =
+  // false hides the Descuento button.
+  const [selfServiceEnabled, setSelfServiceEnabled] = useState(false);
+  const [discountsModuleEnabled, setDiscountsModuleEnabled] = useState(true);
   // Discount state. discountRaw is the cashier's input (5 means 5% or $5 depending on type);
   // discountAmount in orderTotals is the resolved absolute value used for display and totals.
   // The backend re-applies the same normalization, so the source of truth on the wire is
@@ -517,6 +524,9 @@ const POS: React.FC = () => {
         setDefaultConsumerEmail(config.default_consumer_email || config.email || '');
         setServiceChargeEnabled((config as any).service_charge_enabled || false);
         setServiceChargePercent((config as any).service_charge_percent || 10);
+        setSelfServiceEnabled(!!(config as any).enable_shifts_module);
+        const discountsFlag = (config as any).enable_discounts_module;
+        setDiscountsModuleEnabled(discountsFlag === undefined ? true : !!discountsFlag);
       }
     } catch (error) {
     }
@@ -785,7 +795,14 @@ const POS: React.FC = () => {
     setDiscountReasonId(undefined);
     setDiscountReasonText('');
     loadedOrderIdRef.current = null;
-  }, [currentOrder, selectedTable]);
+    // Snap the price list back to the default (favorite) after a sale —
+    // mirrors the production reset so a Mayorista cart doesn't quietly
+    // carry into the next walk-in customer.
+    const defaultList = priceLists.find((l) => l.is_default);
+    if (defaultList && activePriceListId !== defaultList.id) {
+      setActivePriceListId(defaultList.id);
+    }
+  }, [currentOrder, selectedTable, priceLists, activePriceListId]);
 
   const saveOrder = useCallback(async (): Promise<Order | null> => {
     if (orderItems.length === 0) {
@@ -1364,19 +1381,21 @@ const POS: React.FC = () => {
               {priceLists.find((l) => l.id === activePriceListId)?.name || 'Precios'}
             </Button>
           )}
-          <Button
-            startIcon={<DiscountIcon />}
-            size="small"
-            variant={orderTotals.discountAmount > 0 ? 'contained' : 'outlined'}
-            color={orderTotals.discountAmount > 0 ? 'primary' : 'inherit'}
-            onClick={() => setDiscountDialogOpen(true)}
-            disabled={orderItems.length === 0 || !canApplyDiscount}
-            title={!canApplyDiscount ? 'Tu rol no puede aplicar descuentos' : undefined}
-          >
-            {orderTotals.discountAmount > 0
-              ? `-$${orderTotals.discountAmount.toLocaleString('es-CO')}`
-              : 'Descuento'}
-          </Button>
+          {discountsModuleEnabled && (
+            <Button
+              startIcon={<DiscountIcon />}
+              size="small"
+              variant={orderTotals.discountAmount > 0 ? 'contained' : 'outlined'}
+              color={orderTotals.discountAmount > 0 ? 'primary' : 'inherit'}
+              onClick={() => setDiscountDialogOpen(true)}
+              disabled={orderItems.length === 0 || !canApplyDiscount}
+              title={!canApplyDiscount ? 'Tu rol no puede aplicar descuentos' : undefined}
+            >
+              {orderTotals.discountAmount > 0
+                ? `-$${orderTotals.discountAmount.toLocaleString('es-CO')}`
+                : 'Descuento'}
+            </Button>
+          )}
           <Button
             startIcon={
               selectedOrderType?.code === 'dine-in' ? <RestaurantIcon /> :
@@ -1847,7 +1866,9 @@ const POS: React.FC = () => {
         <DialogTitle>Seleccionar Tipo de Pedido</DialogTitle>
         <DialogContent>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
-            {orderTypes.map((orderType) => {
+            {orderTypes
+              .filter((ot) => ot.code !== 'self_service' || selfServiceEnabled)
+              .map((orderType) => {
               const isSelected = selectedOrderType?.id === orderType.id;
               const IconComponent =
                 orderType.code === 'dine-in' ? RestaurantIcon :
