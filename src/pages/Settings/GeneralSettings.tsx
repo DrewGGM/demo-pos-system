@@ -96,13 +96,14 @@ export const defaultModuleConfig: ModuleConfig[] = [
   },
   {
     id: 'sistema',
-    licenseFeature: 'sistema',
     name: 'Sistema',
     description: 'Idioma, moneda, zona horaria',
     icon: <SecurityIcon />,
     enabled: true,
     category: 'essential',
     status: 'production',
+    // No licenseFeature: Sistema is a baseline operational tab that
+    // every plan needs (idioma, moneda, zona horaria).
   },
   // Optional modules
   {
