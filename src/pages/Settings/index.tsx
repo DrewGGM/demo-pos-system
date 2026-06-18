@@ -1824,6 +1824,20 @@ const Settings: React.FC = () => {
                         }}
                       />
                     </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <TextField
+                        fullWidth
+                        label="Sitio web"
+                        value={businessSettings.website}
+                        onChange={(e) => setBusinessSettings({
+                          ...businessSettings,
+                          website: e.target.value,
+                        })}
+                        disabled={!editMode}
+                        placeholder="https://miempresa.com"
+                        helperText="Opcional — aparece en recibos y facturas"
+                      />
+                    </Grid>
                     <Grid item xs={12}>
                       <input
                         type="file"

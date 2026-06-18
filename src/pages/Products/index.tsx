@@ -979,10 +979,18 @@ const Products: React.FC = () => {
               <FormControl fullWidth>
                 <InputLabel>Tipo de IVA</InputLabel>
                 <Select
-                  value={productForm.tax_type_id || 5}
-                  onChange={(e) => setProductForm({ ...productForm, tax_type_id: Number(e.target.value) })}
+                  value={productForm.tax_type_id ?? 0}
+                  onChange={(e) => {
+                    const newTypeId = Number(e.target.value);
+                    setProductForm({
+                      ...productForm,
+                      tax_type_id: newTypeId,
+                      ...(newTypeId === 0 ? { tax_rate: 0 } : {}),
+                    });
+                  }}
                   label="Tipo de IVA"
                 >
+                  <MenuItem value={0}>Sin impuesto / N/A</MenuItem>
                   <MenuItem value={5}>IVA 0% (Exento)</MenuItem>
                   <MenuItem value={6}>IVA 5%</MenuItem>
                   <MenuItem value={1}>IVA 19%</MenuItem>
