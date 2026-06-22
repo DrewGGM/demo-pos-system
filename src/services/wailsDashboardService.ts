@@ -45,6 +45,32 @@ function computeStats(): DashboardStats {
   const activeTables = tables.filter((t: any) => t.status === 'occupied').length;
   const lowStock = products.filter((p: any) => p.track_inventory && p.stock <= 5).length;
 
+  // Top selling items — aggregate every product across every sale (not
+  // limited to today) so the demo dashboard has something interesting to
+  // show even right after a fresh boot. We rank by units sold; ties broken
+  // by revenue.
+  const productById = new Map<number, any>(products.map((p: any) => [p.id, p]));
+  const itemBuckets: Record<number, { product_id: number; product_name: string; quantity: number; total_sales: number }> = {};
+  for (const sale of sales) {
+    const items = sale.order?.items || [];
+    for (const item of items) {
+      const id = item.product_id;
+      if (!id) continue;
+      const product = productById.get(id);
+      const bucket = itemBuckets[id] || (itemBuckets[id] = {
+        product_id: id,
+        product_name: product?.name || item.product?.name || `Producto ${id}`,
+        quantity: 0,
+        total_sales: 0,
+      });
+      bucket.quantity += item.quantity || 0;
+      bucket.total_sales += item.subtotal || (item.unit_price || 0) * (item.quantity || 0);
+    }
+  }
+  const top_selling_items = Object.values(itemBuckets)
+    .sort((a, b) => (b.quantity - a.quantity) || (b.total_sales - a.total_sales))
+    .slice(0, 5);
+
   return {
     today_sales: totalSalesAmount,
     today_sales_count: todaySales.length,
@@ -55,13 +81,7 @@ function computeStats(): DashboardStats {
     active_tables: activeTables,
     sales_growth: 5.2,
     average_ticket: todaySales.length > 0 ? totalSalesAmount / todaySales.length : 0,
-    top_selling_items: [
-      { product_id: 3, product_name: 'Bandeja Paisa', quantity: 12, total_sales: 384000 },
-      { product_id: 4, product_name: 'Lomo de Res a la Parrilla', quantity: 8, total_sales: 304000 },
-      { product_id: 7, product_name: 'Hamburguesa Clasica', quantity: 15, total_sales: 330000 },
-      { product_id: 8, product_name: 'Limonada Natural', quantity: 20, total_sales: 120000 },
-      { product_id: 1, product_name: 'Empanadas (3 unidades)', quantity: 10, total_sales: 120000 },
-    ],
+    top_selling_items,
   };
 }
 
