@@ -1,1 +1,15 @@
-/*    /index.html   200
+# SPA fallback for Cloudflare Pages.
+#
+# Cloudflare's redirect parser flags the bare `/*  /index.html  200` rule
+# with an "infinite loop detected" warning and drops it — it can't tell
+# that index.html itself is a real file served before redirects fire. Being
+# explicit about asset paths (which Cloudflare serves directly anyway)
+# defuses the parser so the SPA fallback below actually registers.
+#
+# Order matters: assets first, fallback last.
+/assets/*       /assets/:splat       200
+/favicon.ico    /favicon.ico         200
+/robots.txt     /robots.txt          200
+
+# Everything else is React Router territory.
+/*              /index.html          200
