@@ -494,6 +494,77 @@ class WailsSalesService {
     const totalSubtotal = filteredSales.reduce((sum: number, s: any) => sum + (s.subtotal || 0), 0);
     const totalDiscount = filteredSales.reduce((sum: number, s: any) => sum + (s.discount || 0), 0);
 
+    // Sales by category — aggregate every order item across the filtered
+    // sales by its product's category. Demo seeds categories in mockBackend.
+    const allCategories = getAll<any>('categories');
+    const categoryById = new Map<number, any>(allCategories.map((c: any) => [c.id, c]));
+    const allProducts = getAll<any>('products');
+    const productById = new Map<number, any>(allProducts.map((p: any) => [p.id, p]));
+    const catBuckets: Record<number, { id: number; name: string; quantity: number; subtotal: number; tax: number; total: number }> = {};
+    for (const sale of filteredSales) {
+      const items = sale.order?.items || [];
+      for (const item of items) {
+        const product = productById.get(item.product_id);
+        const catId = product?.category_id ?? 0;
+        const catName = categoryById.get(catId)?.name || 'Sin categoría';
+        const bucket = catBuckets[catId] || (catBuckets[catId] = {
+          id: catId, name: catName, quantity: 0, subtotal: 0, tax: 0, total: 0,
+        });
+        const qty = item.quantity || 0;
+        const lineSubtotal = item.subtotal || (item.unit_price || 0) * qty;
+        bucket.quantity += qty;
+        bucket.subtotal += lineSubtotal;
+        bucket.total += lineSubtotal;
+      }
+    }
+    const sales_by_category: CategorySalesDetail[] = Object.values(catBuckets)
+      .map(b => ({
+        category_id: b.id,
+        category_name: b.name,
+        quantity: b.quantity,
+        subtotal: b.subtotal,
+        tax: b.tax,
+        total: b.total,
+      }))
+      .sort((a, b) => b.total - a.total);
+
+    // Payment methods aggregation — sum every sale's payment_details and
+    // group by method name. Mirrors the cash register summary shape.
+    // Payment methods aggregation. transactions counts payment_details
+    // rows (a sale split across cash + card counts twice, which matches
+    // the production aggregation). subtotal/tax/discount are prorated by
+    // each payment's share of the sale's total.
+    const allMethods = getAll<any>('payment_methods');
+    const methodById = new Map<number, any>(allMethods.map((m: any) => [m.id, m]));
+    const methodBuckets: Record<number, PaymentMethodSummary> = {};
+    for (const sale of filteredSales) {
+      const details: any[] = Array.isArray(sale.payment_details) ? sale.payment_details : [];
+      const saleTotal = sale.total || 0;
+      const sumDetails = details.reduce((s, d) => s + (d.amount || 0), 0) || saleTotal;
+      for (const d of details) {
+        const method = d.payment_method || methodById.get(d.payment_method_id);
+        const id = method?.id || d.payment_method_id || 0;
+        const bucket = methodBuckets[id] || (methodBuckets[id] = {
+          method_id: id,
+          method_name: method?.name || 'Efectivo',
+          method_type: method?.type || 'cash',
+          transactions: 0,
+          subtotal: 0,
+          tax: 0,
+          discount: 0,
+          total: 0,
+        });
+        const amount = d.amount || 0;
+        const share = sumDetails > 0 ? amount / sumDetails : 0;
+        bucket.transactions += 1;
+        bucket.subtotal += (sale.subtotal || 0) * share;
+        bucket.tax += (sale.tax || 0) * share;
+        bucket.discount += (sale.discount || 0) * share;
+        bucket.total += amount;
+      }
+    }
+    const payment_methods: PaymentMethodSummary[] = Object.values(methodBuckets).sort((a, b) => b.total - a.total);
+
     return {
       business_name: config.business_name || 'Demo Restaurant S.A.S',
       commercial_name: config.name || 'Restaurant Demo POS',
@@ -517,7 +588,7 @@ class WailsSalesService {
       first_invoice_number: filteredSales.length > 0 ? filteredSales[0].sale_number || '' : '',
       last_invoice_number: filteredSales.length > 0 ? filteredSales[filteredSales.length - 1].sale_number || '' : '',
       total_invoices: filteredSales.length,
-      sales_by_category: [],
+      sales_by_category,
       sales_by_tax: [{
         tax_type_id: 1,
         tax_type_name: 'IVA 19%',
@@ -531,7 +602,7 @@ class WailsSalesService {
       debit_notes: [],
       total_credit_notes: 0,
       total_debit_notes: 0,
-      payment_methods: [],
+      payment_methods,
       total_transactions: filteredSales.length,
       total_subtotal: totalSubtotal,
       total_tax: totalTax,
