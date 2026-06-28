@@ -152,6 +152,28 @@ const TAB_VALUES = {
   tema: 17,
 } as const;
 
+// Default shapes for the localStorage-backed preference panels. Declared
+// at module scope so the useState lazy-init can read them without
+// re-creating the object on every render.
+const notificationSettingsDefaults = {
+  lowStock: true,
+  newOrder: true,
+  orderReady: true,
+  dailyReport: true,
+  soundEnabled: true,
+  emailNotifications: false,
+  notificationEmail: '',
+};
+
+const systemSettingsDefaults = {
+  language: 'es',
+  currency: 'COP',
+  timezone: 'America/Bogota',
+  dateFormat: 'DD/MM/YYYY',
+  timeFormat: '24h',
+  theme: 'light',
+};
+
 const TabPanel: React.FC<TabPanelProps> = ({ children, value, index, ...other }) => {
   return (
     <div
@@ -282,26 +304,35 @@ const Settings: React.FC = () => {
     paperSize: '80mm',
   });
 
-  // Notification Settings
-  const [notificationSettings, setNotificationSettings] = useState({
-    lowStock: true,
-    newOrder: true,
-    orderReady: true,
-    dailyReport: true,
-    soundEnabled: true,
-    emailNotifications: false,
-    notificationEmail: '',
+  // Notification Settings — lazy-init from localStorage so the operator's
+  // toggles survive a page reload. Defaults match the production seed.
+  const [notificationSettings, setNotificationSettings] = useState(() => {
+    try {
+      const raw = localStorage.getItem('pos_demo_notification_settings');
+      if (raw) return { ...notificationSettingsDefaults, ...JSON.parse(raw) };
+    } catch { /* fall through to defaults */ }
+    return notificationSettingsDefaults;
   });
 
-  // System Settings
-  const [systemSettings, setSystemSettings] = useState({
-    language: 'es',
-    currency: 'COP',
-    timezone: 'America/Bogota',
-    dateFormat: 'DD/MM/YYYY',
-    timeFormat: '24h',
-    theme: 'light',
+  // System Settings — same persistence pattern. Drives idioma/moneda/zona
+  // horaria/formato hora once the rest of the app starts honoring them.
+  const [systemSettings, setSystemSettings] = useState(() => {
+    try {
+      const raw = localStorage.getItem('pos_demo_system_settings');
+      if (raw) return { ...systemSettingsDefaults, ...JSON.parse(raw) };
+    } catch { /* fall through to defaults */ }
+    return systemSettingsDefaults;
   });
+
+  // Auto-persist on every change so the operator never sees "I changed
+  // this but it didn't stick". No explicit Save button needed — these are
+  // preference toggles, not transactional data.
+  useEffect(() => {
+    try { localStorage.setItem('pos_demo_notification_settings', JSON.stringify(notificationSettings)); } catch { /* ignore quota */ }
+  }, [notificationSettings]);
+  useEffect(() => {
+    try { localStorage.setItem('pos_demo_system_settings', JSON.stringify(systemSettings)); } catch { /* ignore quota */ }
+  }, [systemSettings]);
 
   // Sync Settings
 

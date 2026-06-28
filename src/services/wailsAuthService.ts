@@ -91,8 +91,48 @@ class WailsAuthService {
     const register = getById<any>('cash_registers', registerId);
     if (!register) throw new Error('Caja no encontrada');
     const sales = getAll<any>('sales').filter((s: any) => s.cash_register_id === registerId);
-    const totalSales = sales.reduce((sum: number, s: any) => sum + (s.total || 0), 0);
-    const expectedAmount = (register.opening_amount || 0) + totalSales;
+
+    // Reconciliation math: expected_amount is opening + cash payments only.
+    // Card / transferencia payments increase total_sales but the cashier
+    // doesn't count them when closing the drawer (they sit in the bank).
+    // Previous version summed sale.total which made the expected always
+    // exceed the cash actually in the drawer by the value of card/transfer
+    // sales, producing a constant phantom shortage. Now we walk
+    // payment_details and only include amounts where the method's
+    // affects_cash_register flag is on.
+    const methodsCatalog = getAll<any>('payment_methods');
+    const methodById = new Map<number, any>(methodsCatalog.map((m: any) => [m.id, m]));
+    let totalSales = 0; // gross revenue (every payment counts)
+    let totalCash = 0;
+    let totalCard = 0;
+    let totalDigital = 0;
+    let totalOther = 0;
+    let totalDiscounts = 0;
+    let totalTax = 0;
+    for (const sale of sales) {
+      totalSales += sale.total || 0;
+      totalDiscounts += sale.discount || 0;
+      totalTax += sale.tax || 0;
+      const details: any[] = Array.isArray(sale.payment_details) ? sale.payment_details : [];
+      for (const d of details) {
+        const method = d.payment_method || methodById.get(d.payment_method_id);
+        const amount = d.amount || 0;
+        const type = (method?.type || 'cash').toLowerCase();
+        if (type === 'cash') totalCash += amount;
+        else if (type === 'card' || type === 'debit' || type === 'credit') totalCard += amount;
+        else if (type === 'digital' || type === 'transfer' || type === 'qr') totalDigital += amount;
+        else totalOther += amount;
+      }
+    }
+    const movements: any[] = Array.isArray(register.movements) ? register.movements : [];
+    const cashDeposits = movements
+      .filter(m => m.movement_type === 'deposit' || m.movement_type === 'in')
+      .reduce((s, m) => s + (m.amount || 0), 0);
+    const cashWithdrawals = movements
+      .filter(m => m.movement_type === 'withdrawal' || m.movement_type === 'out')
+      .reduce((s, m) => s + (m.amount || 0), 0);
+    // Expected drawer = opening + cash sales + cash-in movements - cash-out movements.
+    const expectedAmount = (register.opening_amount || 0) + totalCash + cashDeposits - cashWithdrawals;
 
     update('cash_registers', registerId, {
       status: 'closed',
@@ -108,17 +148,17 @@ class WailsAuthService {
       cash_register_id: registerId,
       date: new Date().toISOString(),
       total_sales: totalSales,
-      total_cash: totalSales,
-      total_card: 0,
-      total_digital: 0,
-      total_other: 0,
+      total_cash: totalCash,
+      total_card: totalCard,
+      total_digital: totalDigital,
+      total_other: totalOther,
       total_refunds: 0,
-      total_discounts: 0,
-      total_tax: 0,
+      total_discounts: totalDiscounts,
+      total_tax: totalTax,
       number_of_sales: sales.length,
       number_of_refunds: 0,
-      cash_deposits: 0,
-      cash_withdrawals: 0,
+      cash_deposits: cashDeposits,
+      cash_withdrawals: cashWithdrawals,
       opening_balance: register.opening_amount || 0,
       closing_balance: closingAmount,
       expected_balance: expectedAmount,

@@ -1654,7 +1654,13 @@ const POS: React.FC = () => {
             quantity: m.quantity || 1,
           })) || []}
           onConfirm={(selections) => {
-            const basePrice = selectedProductForModifier.price;
+            // Modifier-priced items still need to respect the active price
+            // list: charging full base + modifiers on a Mayorista cart
+            // would defeat the whole purpose of the markup. applyPriceList
+            // returns the override-or-markup-adjusted unit price; modifier
+            // price_change rides on top untouched (modifiers are extras —
+            // they're discount-neutral by convention).
+            const basePrice = applyPriceList(selectedProductForModifier.price, selectedProductForModifier.id);
             const modifiersPriceChange = selections.reduce(
               (sum, sel) => sum + sel.modifier.price_change * sel.quantity,
               0,
