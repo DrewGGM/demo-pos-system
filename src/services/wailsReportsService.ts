@@ -446,12 +446,44 @@ export const wailsReportsService = {
     };
   },
 
-  async exportSalesReportCSV(_report: SalesReport): Promise<Uint8Array | null> {
-    return new TextEncoder().encode('demo,csv,data\n');
+  async exportSalesReportCSV(report: SalesReport): Promise<Uint8Array | null> {
+    if (!report) return null;
+    const rows: string[][] = [];
+    rows.push(['Reporte de Ventas', report.period]);
+    rows.push([]);
+    rows.push(['Métrica', 'Valor']);
+    rows.push(['Total Ventas', String(report.total_sales || 0)]);
+    rows.push(['IVA', String(report.total_tax || 0)]);
+    rows.push(['Descuentos', String(report.total_discounts || 0)]);
+    rows.push(['Número de Ventas', String(report.number_of_sales || 0)]);
+    rows.push(['Ticket Promedio', String(Math.round(report.average_sale || 0))]);
+    rows.push([]);
+
+    rows.push(['Método de Pago', 'Monto']);
+    Object.entries(report.payment_breakdown || {}).forEach(([m, amt]) => {
+      rows.push([m, String(amt)]);
+    });
+    rows.push([]);
+
+    rows.push(['Día', 'Ventas', 'Órdenes']);
+    (report.daily_sales || []).forEach((d) => {
+      rows.push([d.date, String(d.sales), String(d.orders)]);
+    });
+    rows.push([]);
+
+    rows.push(['Producto', 'Cantidad', 'Ingresos', '%']);
+    (report.top_products || []).forEach((p) => {
+      rows.push([p.product_name, String(p.quantity), String(p.total_sales), `${p.percentage}%`]);
+    });
+
+    const csv = rows
+      .map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+    return new TextEncoder().encode('﻿' + csv);
   },
 
-  async exportSalesReportJSON(_report: SalesReport): Promise<Uint8Array | null> {
-    return new TextEncoder().encode(JSON.stringify(_report));
+  async exportSalesReportJSON(report: SalesReport): Promise<Uint8Array | null> {
+    return new TextEncoder().encode(JSON.stringify(report, null, 2));
   },
 
   async getDashboardStats(): Promise<any> {

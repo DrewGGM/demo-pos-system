@@ -88,7 +88,7 @@ const ProfitReport: React.FC = () => {
       return mul * ((a[sortBy] as number) - (b[sortBy] as number));
     });
 
-  const noCost = products.filter(p => p.cost_is_estimated && p.qty_sold > 0);
+  const noCost = products.filter(p => p.unit_cost === 0 && p.qty_sold > 0);
 
   return (
     <Box sx={{ p: 3 }}>
@@ -162,7 +162,7 @@ const ProfitReport: React.FC = () => {
         <Paper sx={{ p: 2, mb: 2, bgcolor: 'warning.light', color: 'warning.contrastText' }}>
           <Typography variant="body2">
             {noCost.length} producto(s) sin costo configurado: {noCost.slice(0, 5).map(p => p.product_name).join(', ')}
-            {noCost.length > 5 && ` y ${noCost.length - 5} más`}. Mostramos un costo estimado del 45% del precio; ajusta el costo real en Productos para un cálculo preciso.
+            {noCost.length > 5 && ` y ${noCost.length - 5} más`}. Configura el costo en Productos para un cálculo preciso de la utilidad.
           </Typography>
         </Paper>
       )}
@@ -241,8 +241,8 @@ const ProfitReport: React.FC = () => {
                 <TableCell sx={{ fontWeight: 600 }}>{p.product_name}</TableCell>
                 <TableCell><Chip label={p.category_name || 'Sin cat.'} size="small" variant="outlined" /></TableCell>
                 <TableCell align="right">{fmt(p.unit_price)}</TableCell>
-                <TableCell align="right" sx={{ color: p.cost_is_estimated ? 'text.disabled' : 'inherit' }}>
-                  {p.cost_is_estimated ? `~${fmt(p.unit_cost)}` : fmt(p.unit_cost)}
+                <TableCell align="right" sx={{ color: p.unit_cost === 0 ? 'text.disabled' : 'inherit' }}>
+                  {p.unit_cost === 0 ? 'Sin costo' : fmt(p.unit_cost)}
                 </TableCell>
                 <TableCell align="right">
                   <Chip

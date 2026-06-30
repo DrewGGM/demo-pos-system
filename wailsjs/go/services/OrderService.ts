@@ -1,18 +1,34 @@
 import { getAll, getById, create, update, remove, generateOrderNumber } from '../../../src/services/mockBackend';
 
+// Tax rate por producto. tax_type_id=1 → IVA general 19%; otros → 0.
+// El backend real lee de tax_types; aquí mantenemos un mapa fijo simple.
+function taxRateForProduct(productId: number): number {
+  const p = getById<any>('products', productId);
+  if (!p) return 0;
+  if (typeof p.tax_rate === 'number') return p.tax_rate;
+  return p.tax_type_id === 1 ? 0.19 : 0;
+}
+
 export async function CreateOrder(order: any) {
   const orderNumber = generateOrderNumber();
   const now = new Date().toISOString();
   const items = (order.items || []).map((item: any, idx: number) => {
     const unitPrice = item.unit_price || item.price || 0;
+    const qty = item.quantity || 1;
+    const subtotal = unitPrice * qty;
+    const rate = taxRateForProduct(item.product_id);
+    // IVA incluido en el precio — Colombia: precio mostrado = IVA in.
+    // tax extraído de subtotal usando rate/(1+rate).
+    const tax = rate > 0 ? subtotal - subtotal / (1 + rate) : 0;
     return {
       id: Date.now() + idx,
       product_id: item.product_id,
       product: item.product,
-      quantity: item.quantity || 1,
+      quantity: qty,
       unit_price: unitPrice,
       price: unitPrice,
-      subtotal: unitPrice * (item.quantity || 1),
+      subtotal,
+      tax,
       notes: item.notes || '',
       modifiers: item.modifiers || [],
       status: 'pending',
@@ -21,6 +37,7 @@ export async function CreateOrder(order: any) {
     };
   });
   const subtotal = items.reduce((s: number, i: any) => s + i.subtotal, 0);
+  const totalTax = items.reduce((s: number, i: any) => s + (i.tax || 0), 0);
 
   // Normalize discount like the real Go OrderService.calculateOrderTotals:
   // - "percentage" raw value (e.g. 10) becomes subtotal × 10/100
@@ -41,7 +58,7 @@ export async function CreateOrder(order: any) {
     order_number: orderNumber,
     items,
     subtotal,
-    tax: 0,
+    tax: totalTax,
     discount,
     discount_type: order.discount_type || 'amount',
     discount_reason_id: order.discount_reason_id,
@@ -70,14 +87,19 @@ export async function UpdateOrder(order: any) {
   // re-priced and the discount math goes off.
   const items = (order.items || []).map((item: any, idx: number) => {
     const unitPrice = item.unit_price || item.price || 0;
+    const qty = item.quantity || 1;
+    const subtotal = unitPrice * qty;
+    const rate = taxRateForProduct(item.product_id);
+    const tax = rate > 0 ? subtotal - subtotal / (1 + rate) : 0;
     return {
       id: item.id || Date.now() + idx,
       product_id: item.product_id,
       product: item.product,
-      quantity: item.quantity || 1,
+      quantity: qty,
       unit_price: unitPrice,
       price: unitPrice,
-      subtotal: unitPrice * (item.quantity || 1),
+      subtotal,
+      tax,
       notes: item.notes || '',
       modifiers: item.modifiers || [],
       status: item.status || 'pending',
@@ -86,6 +108,7 @@ export async function UpdateOrder(order: any) {
     };
   });
   const subtotal = items.reduce((s: number, i: any) => s + i.subtotal, 0);
+  const totalTax = items.reduce((s: number, i: any) => s + (i.tax || 0), 0);
 
   // Same percentage→absolute normalization as CreateOrder.
   let discount = order.discount || 0;
@@ -102,6 +125,7 @@ export async function UpdateOrder(order: any) {
     ...order,
     items,
     subtotal,
+    tax: totalTax,
     discount,
     discount_type: order.discount_type || 'amount',
     discount_reason_id: order.discount_reason_id,
@@ -114,8 +138,12 @@ export async function UpdateOrder(order: any) {
 
 export async function DeleteOrder(id: number) { return remove('orders', id); }
 
-export async function CancelOrder(id: number, _reason?: string) {
-  return update('orders', id, { status: 'cancelled' });
+export async function CancelOrder(id: number, reason?: string) {
+  return update('orders', id, {
+    status: 'cancelled',
+    cancelled_at: new Date().toISOString(),
+    cancel_reason: reason || '',
+  } as any);
 }
 
 export async function GetPendingOrders() {
@@ -135,21 +163,50 @@ export async function GetOrdersByTable(tableId: number) {
   return getAll<any>('orders').filter((o: any) => o.table_id === tableId);
 }
 
-export async function SendToKitchen(_id: number) {}
+// Marca la orden como enviada a cocina. La UI lee kitchen_acknowledged
+// para distinguir "enviado pero no confirmado" vs "confirmado por cocina".
+// En la demo simulamos la confirmación inmediata después de 1s para que
+// el icono de alerta no se quede colgado eternamente.
+export async function SendToKitchen(id: number) {
+  if (!id) return;
+  const now = new Date().toISOString();
+  update('orders', id, {
+    sent_to_kitchen: true,
+    sent_to_kitchen_at: now,
+    kitchen_acknowledged: false,
+  } as any);
+  // Confirmación automática a los 2s — simula que el bonito tablero de
+  // cocina recibió el ticket. En producción esto viene por WebSocket.
+  setTimeout(() => {
+    update('orders', id, {
+      kitchen_acknowledged: true,
+      kitchen_acknowledged_at: new Date().toISOString(),
+    } as any);
+  }, 2000);
+}
 
-// Tables
+// Tables — el wrapper Wails real pasa la entidad completa (con id incluido)
+// porque así genera Go el binding. Si pasamos (id, entity) por separado
+// la firma se rompe. Aceptamos cualquiera de las dos formas.
 export async function GetTables() { return getAll('tables'); }
 
-export async function CreateTable(table: any) { return create('tables', table); }
+export async function CreateTable(table: any) {
+  const { id, ...rest } = table || {};
+  return create('tables', rest as any);
+}
 
-export async function UpdateTable(id: number, table: any) {
+export async function UpdateTable(tableOrId: any, maybeTable?: any) {
+  const isTwoArg = typeof tableOrId === 'number' && maybeTable;
+  const table = isTwoArg ? maybeTable : tableOrId;
+  const id = isTwoArg ? tableOrId : table?.id;
+  if (!id) throw new Error('UpdateTable: id requerido');
   return update('tables', id, table);
 }
 
 export async function DeleteTable(id: number) { return remove('tables', id); }
 
 export async function UpdateTableStatus(id: number, status: string) {
-  return update('tables', id, { status });
+  return update('tables', id, { status } as any);
 }
 
 // Table Areas
@@ -159,9 +216,16 @@ export async function GetTableAreas() {
     : [{ id: 1, name: 'Salón Principal', is_active: true }];
 }
 
-export async function CreateTableArea(area: any) { return create('table_areas', area); }
+export async function CreateTableArea(area: any) {
+  const { id, ...rest } = area || {};
+  return create('table_areas', rest as any);
+}
 
-export async function UpdateTableArea(id: number, area: any) {
+export async function UpdateTableArea(areaOrId: any, maybeArea?: any) {
+  const isTwoArg = typeof areaOrId === 'number' && maybeArea;
+  const area = isTwoArg ? maybeArea : areaOrId;
+  const id = isTwoArg ? areaOrId : area?.id;
+  if (!id) throw new Error('UpdateTableArea: id requerido');
   return update('table_areas', id, area);
 }
 

@@ -55,10 +55,24 @@ const DEMO_MATRIX: Record<string, Record<string, string>> = {
   },
 };
 
-// In-memory override layer so the Permissions admin page in demo mode actually
-// reflects edits during the session (lost on reload, which is acceptable for a
-// demo). When Wails is present this is ignored — real backend handles it.
-const demoOverrides: Record<string, Record<string, string>> = {};
+// Override layer para la pantalla de Permisos en modo demo. Persistimos en
+// localStorage para que el ajuste sobreviva un reload (antes vivía en
+// memoria y se perdía). Cuando hay Wails real este storage se ignora.
+const DEMO_OVERRIDES_KEY = 'pos_demo_permission_overrides';
+
+function loadOverrides(): Record<string, Record<string, string>> {
+  try {
+    const raw = localStorage.getItem(DEMO_OVERRIDES_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch { /* ignore */ }
+  return {};
+}
+
+function saveOverrides(overrides: Record<string, Record<string, string>>) {
+  try { localStorage.setItem(DEMO_OVERRIDES_KEY, JSON.stringify(overrides)); } catch { /* ignore quota */ }
+}
+
+const demoOverrides: Record<string, Record<string, string>> = loadOverrides();
 
 function resolveDemoValue(role: string, code: string): string {
   const r = role.toLowerCase();
@@ -201,10 +215,11 @@ class WailsPermissionService {
       await W.SetRolePermission(role, code, value);
       return;
     }
-    // Demo mode: persist to the in-memory override layer. Survives until reload.
+    // Demo mode: persist to the localStorage-backed override layer. Sobrevive reloads.
     const r = role.toLowerCase();
     if (!demoOverrides[r]) demoOverrides[r] = {};
     demoOverrides[r][code] = value;
+    saveOverrides(demoOverrides);
   }
 }
 

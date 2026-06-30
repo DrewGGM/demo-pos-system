@@ -150,13 +150,15 @@ export const wailsConfigService = {
   },
 
   async getTunnelStatus(): Promise<any> {
-    return { running: false, url: '', error: '' };
+    return { running: false, url: '', error: 'Túneles Cloudflare no están disponibles en la demo web' };
   },
 
-  async startQuickTunnel(port: number): Promise<void> {
+  async startQuickTunnel(_port: number): Promise<void> {
+    throw new Error('Cloudflare Tunnel solo está disponible en la versión instalada del POS');
   },
 
-  async startTunnelWithToken(token: string): Promise<void> {
+  async startTunnelWithToken(_token: string): Promise<void> {
+    throw new Error('Cloudflare Tunnel solo está disponible en la versión instalada del POS');
   },
 
   async stopTunnel(): Promise<void> {
@@ -164,6 +166,7 @@ export const wailsConfigService = {
   },
 
   async downloadCloudflared(): Promise<void> {
+    throw new Error('Descarga de cloudflared no disponible en la demo web');
   },
 
   async isTunnelInstalled(): Promise<boolean> {
@@ -171,7 +174,7 @@ export const wailsConfigService = {
   },
 
   async getTunnelDownloadURL(): Promise<string> {
-    return '';
+    return 'https://github.com/cloudflare/cloudflared/releases/latest';
   },
 
   async clearTunnelOutput(): Promise<void> {
@@ -179,9 +182,11 @@ export const wailsConfigService = {
   },
 
   async installCloudflaredViaPackageManager(): Promise<void> {
+    throw new Error('Instalación de cloudflared no disponible en la demo web');
   },
 
   async loginToCloudflare(): Promise<void> {
+    throw new Error('Login Cloudflare requiere binario cloudflared local');
   },
 
   async getPackageManagerCommand(): Promise<string> {

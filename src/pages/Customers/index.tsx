@@ -145,14 +145,15 @@ const Customers: React.FC = () => {
       toast.error('El número de documento es requerido');
       return;
     }
-    if (!customerForm.email?.trim()) {
-      toast.error('El email es requerido');
-      return;
-    }
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(customerForm.email.trim())) {
-      toast.error('Email inválido');
-      return;
+    // Email es opcional (excepto NIT que ya lo expone DIAN como requerido
+    // a nivel UI específico). Si está vacío lo dejamos pasar; si trae algo
+    // validamos formato para no guardar basura.
+    if (customerForm.email?.trim()) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(customerForm.email.trim())) {
+        toast.error('Email inválido');
+        return;
+      }
     }
     if (customerForm.phone?.trim() && !/^[0-9+\-\s()]{5,20}$/.test(customerForm.phone.trim())) {
       toast.error('Teléfono inválido (solo dígitos, +, -, espacios)');
@@ -198,14 +199,27 @@ const Customers: React.FC = () => {
     }
   };
 
-  const filteredCustomers = customers.filter(customer => {
+  // Filtros: tab 0 Todos, tab 1 VIP (≥3 compras), tab 2 Nuevos (creados en
+  // los últimos 30 días). Antes el tab actualizaba estado pero nadie lo
+  // leía — las pestañas eran decorativas.
+  const thirtyDaysAgoMs = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  const filteredCustomers = customers.filter((customer) => {
     const search = searchQuery.toLowerCase();
-    return (
+    const matchesSearch =
+      !search ||
       customer.name.toLowerCase().includes(search) ||
       customer.document_number?.includes(search) ||
       customer.email?.toLowerCase().includes(search) ||
-      customer.phone?.includes(search)
-    );
+      customer.phone?.includes(search);
+    if (!matchesSearch) return false;
+    if (selectedTab === 1) {
+      return (customer.total_purchases || 0) >= 3;
+    }
+    if (selectedTab === 2) {
+      const created = customer.created_at ? new Date(customer.created_at).getTime() : 0;
+      return created >= thirtyDaysAgoMs;
+    }
+    return true;
   });
 
   const columns: GridColDef[] = [
@@ -517,9 +531,8 @@ const Customers: React.FC = () => {
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
-                label="Email"
+                label="Email (opcional)"
                 type="email"
-                required
                 value={customerForm.email}
                 onChange={(e) => setCustomerForm({ ...customerForm, email: e.target.value })}
                 InputProps={{

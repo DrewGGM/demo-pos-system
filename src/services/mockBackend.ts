@@ -57,36 +57,42 @@ const SEED_MODIFIER_GROUPS = [
 ]
 
 const SEED_PRODUCTS = [
-  { id: 1, name: 'Empanadas (3 unidades)', price: 12000, category_id: 1, stock: 50, is_active: true, track_inventory: true, has_variable_price: false, tax_type_id: 1, description: 'Empanadas de carne con ají', image: imgEmpanadas, modifiers: [] },
-  { id: 2, name: 'Patacones con Hogao', price: 15000, category_id: 1, stock: 30, is_active: true, track_inventory: true, has_variable_price: false, tax_type_id: 1, description: 'Patacones fritos con hogao casero', image: imgPatacones, modifiers: [] },
-  { id: 3, name: 'Bandeja Paisa', price: 32000, category_id: 2, stock: 25, is_active: true, track_inventory: true, has_variable_price: false, tax_type_id: 1, description: 'Arroz, frijoles, carne molida, chicharrón, huevo, plátano, arepa, aguacate', image: imgBandejaPaisa, modifiers: [SEED_MODIFIER_GROUPS[0], SEED_MODIFIER_GROUPS[1]] },
-  { id: 4, name: 'Lomo de Res a la Parrilla', price: 38000, category_id: 2, stock: 20, is_active: true, track_inventory: true, has_variable_price: false, tax_type_id: 1, description: '350g de lomo con papas y ensalada', image: imgLomoRes, modifiers: [SEED_MODIFIER_GROUPS[0], SEED_MODIFIER_GROUPS[1]] },
-  { id: 5, name: 'Pollo a la Plancha', price: 28000, category_id: 2, stock: 30, is_active: true, track_inventory: true, has_variable_price: false, tax_type_id: 1, description: 'Pechuga a la plancha con arroz y ensalada', image: imgPolloPlancha, modifiers: [SEED_MODIFIER_GROUPS[1]] },
-  { id: 6, name: 'Cazuela de Mariscos', price: 42000, category_id: 2, stock: 15, is_active: true, track_inventory: true, has_variable_price: false, tax_type_id: 1, description: 'Arroz de coco con cazuela', image: imgCazuelaMariscos, modifiers: [] },
-  { id: 7, name: 'Hamburguesa Clásica', price: 22000, category_id: 2, stock: 40, is_active: true, track_inventory: true, has_variable_price: false, tax_type_id: 1, description: 'Carne 200g, lechuga, tomate, cebolla', image: imgHamburguesa, modifiers: [SEED_MODIFIER_GROUPS[0], SEED_MODIFIER_GROUPS[1]] },
-  { id: 8, name: 'Limonada Natural', price: 6000, category_id: 3, stock: 100, is_active: true, track_inventory: false, has_variable_price: false, tax_type_id: 1, description: 'Limonada fresca natural', image: imgLimonada, modifiers: [SEED_MODIFIER_GROUPS[2]] },
-  { id: 9, name: 'Jugo de Mango', price: 7000, category_id: 3, stock: 100, is_active: true, track_inventory: false, has_variable_price: false, tax_type_id: 1, description: 'Jugo natural de mango', image: imgJugoMango, modifiers: [SEED_MODIFIER_GROUPS[2]] },
-  { id: 10, name: 'Coca-Cola', price: 5000, category_id: 3, stock: 80, is_active: true, track_inventory: true, has_variable_price: false, tax_type_id: 1, description: '', image: imgCocaCola, modifiers: [SEED_MODIFIER_GROUPS[2]] },
-  { id: 11, name: 'Cerveza Club Colombia', price: 8000, category_id: 3, stock: 60, is_active: true, track_inventory: true, has_variable_price: false, tax_type_id: 1, description: '', image: imgCerveza, modifiers: [] },
-  { id: 12, name: 'Agua Mineral', price: 3500, category_id: 3, stock: 100, is_active: true, track_inventory: true, has_variable_price: false, tax_type_id: 1, description: '', image: imgAguaMineral, modifiers: [] },
-  { id: 13, name: 'Tres Leches', price: 12000, category_id: 4, stock: 20, is_active: true, track_inventory: true, has_variable_price: false, tax_type_id: 1, description: 'Pastel tres leches tradicional', image: imgTresLeches, modifiers: [] },
-  { id: 14, name: 'Brownie con Helado', price: 14000, category_id: 4, stock: 15, is_active: true, track_inventory: true, has_variable_price: false, tax_type_id: 1, description: 'Brownie caliente con helado de vainilla', image: imgBrownieHelado, modifiers: [] },
-  { id: 15, name: 'Arroz Extra', price: 4000, category_id: 5, stock: 100, is_active: true, track_inventory: false, has_variable_price: false, tax_type_id: 1, description: 'Porción extra de arroz blanco', image: imgArroz, modifiers: [] },
-  { id: 16, name: 'Ensalada Extra', price: 5000, category_id: 5, stock: 100, is_active: true, track_inventory: false, has_variable_price: false, tax_type_id: 1, description: 'Ensalada fresca del día', image: imgEnsalada, modifiers: [] },
+  { id: 1, name: 'Empanadas (3 unidades)', price: 12000, cost: 5500, category_id: 1, stock: 50, is_active: true, track_inventory: true, has_variable_price: false, tax_type_id: 1, description: 'Empanadas de carne con ají', image: imgEmpanadas, modifiers: [] },
+  { id: 2, name: 'Patacones con Hogao', price: 15000, cost: 6800, category_id: 1, stock: 30, is_active: true, track_inventory: true, has_variable_price: false, tax_type_id: 1, description: 'Patacones fritos con hogao casero', image: imgPatacones, modifiers: [] },
+  { id: 3, name: 'Bandeja Paisa', price: 32000, cost: 14500, category_id: 2, stock: 25, is_active: true, track_inventory: true, has_variable_price: false, tax_type_id: 1, description: 'Arroz, frijoles, carne molida, chicharrón, huevo, plátano, arepa, aguacate', image: imgBandejaPaisa, modifiers: [SEED_MODIFIER_GROUPS[0], SEED_MODIFIER_GROUPS[1]] },
+  { id: 4, name: 'Lomo de Res a la Parrilla', price: 38000, cost: 18500, category_id: 2, stock: 20, is_active: true, track_inventory: true, has_variable_price: false, tax_type_id: 1, description: '350g de lomo con papas y ensalada', image: imgLomoRes, modifiers: [SEED_MODIFIER_GROUPS[0], SEED_MODIFIER_GROUPS[1]] },
+  { id: 5, name: 'Pollo a la Plancha', price: 28000, cost: 12000, category_id: 2, stock: 30, is_active: true, track_inventory: true, has_variable_price: false, tax_type_id: 1, description: 'Pechuga a la plancha con arroz y ensalada', image: imgPolloPlancha, modifiers: [SEED_MODIFIER_GROUPS[1]] },
+  { id: 6, name: 'Cazuela de Mariscos', price: 42000, cost: 21000, category_id: 2, stock: 15, is_active: true, track_inventory: true, has_variable_price: false, tax_type_id: 1, description: 'Arroz de coco con cazuela', image: imgCazuelaMariscos, modifiers: [] },
+  { id: 7, name: 'Hamburguesa Clásica', price: 22000, cost: 9500, category_id: 2, stock: 40, is_active: true, track_inventory: true, has_variable_price: false, tax_type_id: 1, description: 'Carne 200g, lechuga, tomate, cebolla', image: imgHamburguesa, modifiers: [SEED_MODIFIER_GROUPS[0], SEED_MODIFIER_GROUPS[1]] },
+  { id: 8, name: 'Limonada Natural', price: 6000, cost: 1800, category_id: 3, stock: 100, is_active: true, track_inventory: false, has_variable_price: false, tax_type_id: 1, description: 'Limonada fresca natural', image: imgLimonada, modifiers: [SEED_MODIFIER_GROUPS[2]] },
+  { id: 9, name: 'Jugo de Mango', price: 7000, cost: 2200, category_id: 3, stock: 100, is_active: true, track_inventory: false, has_variable_price: false, tax_type_id: 1, description: 'Jugo natural de mango', image: imgJugoMango, modifiers: [SEED_MODIFIER_GROUPS[2]] },
+  { id: 10, name: 'Coca-Cola', price: 5000, cost: 2300, category_id: 3, stock: 80, is_active: true, track_inventory: true, has_variable_price: false, tax_type_id: 1, description: '', image: imgCocaCola, modifiers: [SEED_MODIFIER_GROUPS[2]] },
+  { id: 11, name: 'Cerveza Club Colombia', price: 8000, cost: 3500, category_id: 3, stock: 60, is_active: true, track_inventory: true, has_variable_price: false, tax_type_id: 1, description: '', image: imgCerveza, modifiers: [] },
+  { id: 12, name: 'Agua Mineral', price: 3500, cost: 1200, category_id: 3, stock: 100, is_active: true, track_inventory: true, has_variable_price: false, tax_type_id: 1, description: '', image: imgAguaMineral, modifiers: [] },
+  { id: 13, name: 'Tres Leches', price: 12000, cost: 4500, category_id: 4, stock: 20, is_active: true, track_inventory: true, has_variable_price: false, tax_type_id: 1, description: 'Pastel tres leches tradicional', image: imgTresLeches, modifiers: [] },
+  { id: 14, name: 'Brownie con Helado', price: 14000, cost: 5800, category_id: 4, stock: 15, is_active: true, track_inventory: true, has_variable_price: false, tax_type_id: 1, description: 'Brownie caliente con helado de vainilla', image: imgBrownieHelado, modifiers: [] },
+  { id: 15, name: 'Arroz Extra', price: 4000, cost: 800, category_id: 5, stock: 100, is_active: true, track_inventory: false, has_variable_price: false, tax_type_id: 1, description: 'Porción extra de arroz blanco', image: imgArroz, modifiers: [] },
+  { id: 16, name: 'Ensalada Extra', price: 5000, cost: 1800, category_id: 5, stock: 100, is_active: true, track_inventory: false, has_variable_price: false, tax_type_id: 1, description: 'Ensalada fresca del día', image: imgEnsalada, modifiers: [] },
 ]
 
 const SEED_ORDER_TYPES = [
-  { id: 1, code: 'dine_in', name: 'Para Comer Aquí', description: 'Servicio en mesa', icon: '🍽️', display_color: '#4CAF50', is_active: true },
-  { id: 2, code: 'takeout', name: 'Para Llevar', description: 'Orden para llevar', icon: '🥡', display_color: '#FF9800', is_active: true },
-  { id: 3, code: 'delivery', name: 'Domicilio', description: 'Entrega a domicilio', icon: '🚚', display_color: '#2196F3', is_active: true },
+  // El POS compara `selectedOrderType.code === 'dine-in'` con guion, no
+  // guion-bajo. Mantener consistencia con el seed real del backend
+  // (app/database/connection.go::seedOrderTypes).
+  { id: 1, code: 'dine-in', name: 'Para Comer Aquí', description: 'Servicio en mesa', icon: 'restaurant', display_color: '#4CAF50', display_order: 0, is_active: true, is_system: true, requires_sequential_number: false },
+  { id: 2, code: 'takeout', name: 'Para Llevar', description: 'Orden para llevar', icon: 'shopping_bag', display_color: '#FF9800', display_order: 1, is_active: true, is_system: true, requires_sequential_number: false },
+  { id: 3, code: 'delivery', name: 'Domicilio', description: 'Entrega a domicilio', icon: 'delivery_dining', display_color: '#2196F3', display_order: 2, is_active: true, is_system: false, requires_sequential_number: true, sequence_prefix: 'D-' },
 ]
 
+// closeCashRegister clasifica con type ∈ {cash, card|debit|credit, digital|transfer|qr};
+// affects_cash_register dispara si el monto va al cajón o al banco.
+// show_in_cash_summary controla si aparece en el desglose del cierre.
 const SEED_PAYMENT_METHODS = [
-  { id: 1, name: 'Efectivo', type: 'cash', icon: '💵', is_active: true, is_system: true },
-  { id: 2, name: 'Tarjeta Débito', type: 'debit_card', icon: '💳', is_active: true, is_system: true },
-  { id: 3, name: 'Tarjeta Crédito', type: 'credit_card', icon: '💳', is_active: true, is_system: true },
-  { id: 4, name: 'Transferencia', type: 'transfer', icon: '📱', is_active: true, is_system: true },
-  { id: 5, name: 'Nequi', type: 'digital_wallet', icon: '📲', is_active: true, is_system: false },
+  { id: 1, name: 'Efectivo', type: 'cash', code: 'CASH', icon: '💵', display_order: 0, is_active: true, is_system_default: true, affects_cash_register: true, show_in_cash_summary: true, show_in_reports: true, requires_ref: false, requires_voucher: false, dian_payment_method_id: 10 },
+  { id: 2, name: 'Tarjeta Débito', type: 'debit', code: 'DEBIT', icon: '💳', display_order: 1, is_active: true, is_system_default: true, affects_cash_register: false, show_in_cash_summary: true, show_in_reports: true, requires_ref: true, requires_voucher: false, dian_payment_method_id: 49 },
+  { id: 3, name: 'Tarjeta Crédito', type: 'credit', code: 'CREDIT', icon: '💳', display_order: 2, is_active: true, is_system_default: true, affects_cash_register: false, show_in_cash_summary: true, show_in_reports: true, requires_ref: true, requires_voucher: false, dian_payment_method_id: 48 },
+  { id: 4, name: 'Transferencia', type: 'transfer', code: 'TRANSFER', icon: '📱', display_order: 3, is_active: true, is_system_default: true, affects_cash_register: false, show_in_cash_summary: true, show_in_reports: true, requires_ref: true, requires_voucher: false, dian_payment_method_id: 47 },
+  { id: 5, name: 'Nequi', type: 'digital', code: 'NEQUI', icon: '📲', display_order: 4, is_active: true, is_system_default: false, affects_cash_register: false, show_in_cash_summary: true, show_in_reports: true, requires_ref: true, requires_voucher: false, dian_payment_method_id: 47 },
 ]
 
 const SEED_TABLE_AREAS = [
@@ -128,14 +134,33 @@ const SEED_RESTAURANT_CONFIG = {
   name: 'Restaurant Demo POS',
   business_name: 'Demo Restaurant S.A.S',
   nit: '900123456',
+  identification_number: '900123456',
+  dv: '7',
+  type_document_id: 6, // NIT
+  type_organization_id: 1, // Persona Jurídica
+  type_regime_id: 2, // No responsable IVA
+  type_liability_id: 117,
+  municipality_id: 820, // Armenia
   address: 'Calle 10 #15-20, Armenia, Quindío',
   phone: '3001234567',
   email: 'demo@restaurantpos.co',
   logo: '',
+  enable_inventory_module: true,
+  enable_ingredients_module: false,
+  enable_combos_module: false,
+  enable_customers_module: true,
+  enable_reports_module: true,
+  enable_profit_module: true,
+  enable_accounting_module: false,
+  enable_discounts_module: true,
+  enable_shifts_module: false,
 }
 
 export function initDemoData() {
   if (localStorage.getItem(STORAGE_PREFIX + 'initialized')) {
+    // Migraciones idempotentes para instalaciones viejas que arrancaron con
+    // los seeds rotos (dine_in en vez de dine-in, sin payment_methods, etc.).
+    // Reaplicamos solo cuando detectamos el estado roto, no en cada arranque.
     const products = getStore<any[]>('products', [])
     if (products.length > 0 && (!products[0].image || products[0].image.startsWith('http'))) {
       setStore('products', SEED_PRODUCTS)
@@ -145,6 +170,18 @@ export function initDemoData() {
       setStore('table_areas', SEED_TABLE_AREAS)
       setStore('tables', SEED_TABLES)
       initGridLayouts()
+    }
+    const methods = getStore<any[]>('payment_methods', [])
+    if (methods.length === 0 || !methods[0].affects_cash_register) {
+      // El seed previo no escribia payment_methods, y cuando lo hacia los
+      // tipos eran "debit_card"/"credit_card"/"transfer"/"digital_wallet"
+      // (sin affects_cash_register). closeCashRegister tira todo a "other"
+      // y el cierre siempre sale con faltante. Reescribimos.
+      setStore('payment_methods', SEED_PAYMENT_METHODS)
+    }
+    const types = getStore<any[]>('order_types', [])
+    if (types.length === 0 || types.some((t: any) => t.code === 'dine_in')) {
+      setStore('order_types', SEED_ORDER_TYPES)
     }
     return
   }
@@ -171,7 +208,19 @@ export function initDemoData() {
     status: 'open',
     notes: 'Apertura demo',
     opened_at: new Date().toISOString(),
-    movements: [],
+    movements: [{
+      id: 1,
+      cash_register_id: 1,
+      type: 'deposit',
+      movement_type: 'in',
+      amount: 200000,
+      description: 'Apertura de caja',
+      reason: 'Apertura de caja',
+      reference: 'OPENING',
+      employee_id: 1,
+      employee_name: 'Administrador',
+      created_at: new Date().toISOString(),
+    }],
   }])
   setStore('combos', [])
   initGridLayouts()

@@ -34,8 +34,10 @@ export const wailsUpdateService = {
   },
 
   async applyUpdate(_newExePath: string): Promise<void> {
+    throw new Error('Las actualizaciones no están disponibles en la demo web. Descarga el instalador desde la página oficial.');
   },
 
   async performUpdate(): Promise<void> {
+    throw new Error('Las actualizaciones no están disponibles en la demo web. Descarga el instalador desde la página oficial.');
   },
 };

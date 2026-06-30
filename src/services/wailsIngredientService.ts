@@ -18,6 +18,7 @@ class WailsIngredientService {
       unit: ingredient.unit || 'unidades',
       stock: ingredient.stock || 0,
       min_stock: ingredient.min_stock || 0,
+      cost: (ingredient as any).cost || 0,
       is_active: ingredient.is_active ?? true,
     } as any);
   }
@@ -30,31 +31,72 @@ class WailsIngredientService {
     remove('ingredients', id);
   }
 
-  async adjustStock(ingredientId: number, quantity: number, _reason: string, _employeeId: number = 0): Promise<Ingredient> {
+  // Ajuste de stock — además del cambio en el ingrediente registramos un
+  // movimiento para que la vista de historial muestre algo. mockBackend
+  // no tiene tabla `ingredient_movements`, la creamos al vuelo.
+  async adjustStock(ingredientId: number, quantity: number, reason: string, employeeId: number = 0): Promise<Ingredient> {
     const ingredient = getById<any>('ingredients', ingredientId);
     if (!ingredient) throw new Error('Ingrediente no encontrado');
     const newStock = (ingredient.stock || 0) + quantity;
-    return update('ingredients', ingredientId, { stock: newStock } as any) as unknown as Ingredient;
+    const updated = update('ingredients', ingredientId, { stock: newStock } as any);
+    create('ingredient_movements', {
+      ingredient_id: ingredientId,
+      ingredient_name: ingredient.name,
+      quantity,
+      previous_stock: ingredient.stock || 0,
+      new_stock: newStock,
+      type: quantity >= 0 ? 'in' : 'out',
+      reason: reason || '',
+      employee_id: employeeId,
+    } as any);
+    return updated as unknown as Ingredient;
   }
 
-  async getIngredientMovements(_ingredientId: number): Promise<IngredientMovement[]> {
-    return [];
+  async getIngredientMovements(ingredientId: number): Promise<IngredientMovement[]> {
+    const all = getAll<any>('ingredient_movements');
+    return (all.filter((m: any) => m.ingredient_id === ingredientId) as IngredientMovement[])
+      .sort((a: any, b: any) =>
+        new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
+      );
   }
 
-  async getProductIngredients(_productId: number): Promise<ProductIngredient[]> {
-    return [];
+  // Recetas: product_ingredients es la tabla N:M producto↔ingrediente.
+  async getProductIngredients(productId: number): Promise<ProductIngredient[]> {
+    const all = getAll<any>('product_ingredients');
+    return all.filter((pi: any) => pi.product_id === productId) as ProductIngredient[];
   }
 
-  async addProductIngredient(_productIngredient: Partial<ProductIngredient>): Promise<void> {
+  async addProductIngredient(productIngredient: Partial<ProductIngredient>): Promise<void> {
+    create('product_ingredients', {
+      product_id: productIngredient.product_id,
+      ingredient_id: productIngredient.ingredient_id,
+      quantity: productIngredient.quantity || 0,
+      unit: productIngredient.unit || 'unidades',
+    } as any);
   }
 
-  async updateProductIngredient(_id: number, _productIngredient: Partial<ProductIngredient>): Promise<void> {
+  async updateProductIngredient(id: number, productIngredient: Partial<ProductIngredient>): Promise<void> {
+    update('product_ingredients', id, productIngredient as any);
   }
 
-  async deleteProductIngredient(_id: number): Promise<void> {
+  async deleteProductIngredient(id: number): Promise<void> {
+    remove('product_ingredients', id);
   }
 
-  async setProductIngredients(_productId: number, _ingredients: Partial<ProductIngredient>[]): Promise<void> {
+  // Reemplaza el set de ingredientes de un producto en bloque (lo que hace
+  // el editor de recetas al guardar). Borra los existentes para el producto
+  // y reinserta los nuevos.
+  async setProductIngredients(productId: number, ingredients: Partial<ProductIngredient>[]): Promise<void> {
+    const existing = getAll<any>('product_ingredients').filter((pi: any) => pi.product_id === productId);
+    for (const pi of existing) remove('product_ingredients', pi.id);
+    for (const pi of ingredients) {
+      create('product_ingredients', {
+        product_id: productId,
+        ingredient_id: pi.ingredient_id,
+        quantity: pi.quantity || 0,
+        unit: pi.unit || 'unidades',
+      } as any);
+    }
   }
 
   async getLowStockIngredients(): Promise<Ingredient[]> {

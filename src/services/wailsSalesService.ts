@@ -237,12 +237,46 @@ class WailsSalesService {
     };
   }
 
+  // Simula reenvío DIAN: 75% éxito, 25% falla. El estado fe_* queda
+  // grabado en la venta para que la UI muestre badge correcto y permita
+  // reintentos. Antes era no-op completo y el toast "reenviada" mentía.
   async resendElectronicInvoice(saleId: number): Promise<void> {
-    // no-op in demo
+    const sale = getById<any>('sales', saleId);
+    if (!sale) throw new Error('Venta no encontrada');
+    const attempts = (sale.fe_attempts || 0) + 1;
+    const succeeded = (sale.id % 4) !== 0; // determinístico
+    if (succeeded) {
+      const cufe = btoa(`${sale.id}-${Date.now()}`).slice(0, 96);
+      update('sales', saleId, {
+        fe_status: 'accepted',
+        fe_attempts: attempts,
+        fe_last_error: '',
+        cufe,
+        electronic_invoice_status: 'sent',
+        electronic_invoice_sent_at: new Date().toISOString(),
+      } as any);
+    } else {
+      update('sales', saleId, {
+        fe_status: 'failed',
+        fe_attempts: attempts,
+        fe_last_error: 'Error simulado de DIAN (modo demo). Reintenta.',
+        electronic_invoice_status: 'failed',
+      } as any);
+      throw new Error('Error simulado de DIAN (modo demo). Reintenta.');
+    }
   }
 
+  // Marca la venta como factura electrónica y dispara un primer envío para
+  // que la UI vea estado de inmediato (mismo comportamiento que el backend).
   async convertToElectronicInvoice(saleId: number): Promise<void> {
-    update<any>('sales', saleId, { invoice_type: 'electronic', needs_electronic_invoice: true });
+    update<any>('sales', saleId, {
+      invoice_type: 'electronic',
+      needs_electronic_invoice: true,
+      fe_status: 'pending',
+    });
+    try {
+      await this.resendElectronicInvoice(saleId);
+    } catch { /* el caller verá el estado en la venta */ }
   }
 
   async getSalesReport(startDate?: string, endDate?: string): Promise<any> {
@@ -292,20 +326,18 @@ class WailsSalesService {
         if (!productStats[pid]) {
           const product = products.find((p: any) => p.id === pid);
           const category = categories.find((c: any) => c.id === product?.category_id);
-          // Si el producto no tiene costo configurado asumimos 45% del precio
-          // (margen bruto típico de restaurante) para que el reporte muestre
-          // datos útiles en la demo en vez de "Sin costo". Se marca con
-          // _estimated para que la UI pueda diferenciarlos si quiere.
-          const rawCost = product?.cost || 0;
-          const estimatedCost = rawCost > 0 ? rawCost : Math.round((product?.price || 0) * 0.45);
+          // Los seed products de la demo traen cost real. Si un producto
+          // creado por el usuario no tiene cost lo dejamos en 0 y la UI
+          // muestra "Sin costo" — coincide con el comportamiento de prod.
+          const unitCost = product?.cost || 0;
           productStats[pid] = {
             product_id: pid,
             product_name: product?.name || 'Producto',
             category_name: category?.name || '',
             unit_price: product?.price || 0,
-            unit_cost: estimatedCost,
-            cost_is_estimated: rawCost === 0,
-            unit_margin: (product?.price || 0) - estimatedCost,
+            unit_cost: unitCost,
+            cost_is_estimated: false,
+            unit_margin: (product?.price || 0) - unitCost,
             margin_pct: 0,
             qty_sold: 0,
             total_revenue: 0,
@@ -436,11 +468,20 @@ class WailsSalesService {
     return paid - total;
   }
 
-  async printReceipt(saleId: number): Promise<void> {
-    // no-op in demo
+  // Impresión en demo: lanzamos window.print() para que el usuario al menos
+  // vea el diálogo nativo del navegador. No se imprime un recibo formateado
+  // (eso lo hace el servicio Wails real con la impresora térmica), pero al
+  // menos el botón hace algo visible.
+  async printReceipt(_saleId: number): Promise<void> {
+    if (typeof window !== 'undefined' && typeof window.print === 'function') {
+      window.print();
+    }
   }
 
-  async printInvoice(saleId: number): Promise<void> {
+  async printInvoice(_saleId: number): Promise<void> {
+    if (typeof window !== 'undefined' && typeof window.print === 'function') {
+      window.print();
+    }
   }
 
   async exportSalesReport(startDate?: Date, endDate?: Date): Promise<Blob> {
@@ -483,7 +524,7 @@ class WailsSalesService {
   }
 
   async sendElectronicInvoice(saleId: number): Promise<void> {
-    // no-op in demo
+    await this.resendElectronicInvoice(saleId);
   }
 
   async updateSaleCustomer(saleId: number, customerId: number): Promise<void> {
@@ -636,7 +677,10 @@ class WailsSalesService {
     };
   }
 
-  async printDIANClosingReport(date: string, period: 'daily' | 'weekly' | 'monthly' | 'yearly' | 'custom' = 'daily', endDate?: string): Promise<void> {
+  async printDIANClosingReport(_date: string, _period: 'daily' | 'weekly' | 'monthly' | 'yearly' | 'custom' = 'daily', _endDate?: string): Promise<void> {
+    if (typeof window !== 'undefined' && typeof window.print === 'function') {
+      window.print();
+    }
   }
 
   // Internal mappers

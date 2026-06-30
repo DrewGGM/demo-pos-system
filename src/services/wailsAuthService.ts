@@ -61,11 +61,38 @@ class WailsAuthService {
     }
   }
 
-  async changePassword(_oldPassword: string, _newPassword: string): Promise<AuthResponse> {
-    return { success: true, message: 'Contrasena actualizada' };
+  // Valida la credencial actual contra el empleado del token y persiste la
+  // nueva. Antes el método mentía con success:true sin tocar nada, así que
+  // el usuario "cambiaba" su clave y al cerrar sesión seguía igual.
+  async changePassword(oldPassword: string, newPassword: string): Promise<AuthResponse> {
+    if (!newPassword || newPassword.length < 3) {
+      return { success: false, message: 'La nueva contraseña es muy corta' };
+    }
+    const token = localStorage.getItem('token');
+    if (!token) return { success: false, message: 'Sesión inválida' };
+    const employeeId = parseInt(atob(token).split(':')[0], 10);
+    const emp = getById<any>('employees', employeeId);
+    if (!emp) return { success: false, message: 'Empleado no encontrado' };
+    if (emp.password !== oldPassword) {
+      return { success: false, message: 'Contraseña actual incorrecta' };
+    }
+    update('employees', employeeId, { password: newPassword } as any);
+    return { success: true, message: 'Contraseña actualizada' };
   }
 
-  async changePIN(_oldPIN: string, _newPIN: string): Promise<AuthResponse> {
+  async changePIN(oldPIN: string, newPIN: string): Promise<AuthResponse> {
+    if (!newPIN || !/^\d{4,6}$/.test(newPIN)) {
+      return { success: false, message: 'El PIN debe tener 4-6 dígitos' };
+    }
+    const token = localStorage.getItem('token');
+    if (!token) return { success: false, message: 'Sesión inválida' };
+    const employeeId = parseInt(atob(token).split(':')[0], 10);
+    const emp = getById<any>('employees', employeeId);
+    if (!emp) return { success: false, message: 'Empleado no encontrado' };
+    if (emp.pin !== oldPIN) {
+      return { success: false, message: 'PIN actual incorrecto' };
+    }
+    update('employees', employeeId, { pin: newPIN } as any);
     return { success: true, message: 'PIN actualizado' };
   }
 
@@ -82,8 +109,29 @@ class WailsAuthService {
       status: 'open',
       notes,
       opened_at: new Date().toISOString(),
-      movements: [],
+      // Movimiento OPENING — la UI lo filtra (reference !== 'OPENING') para
+      // no mostrarlo en el historial, pero lo necesita en el array para
+      // saber qué empleado abrió la caja con cuánto dinero.
+      movements: [{
+        id: Date.now(),
+        cash_register_id: 0, // se sobrescribe abajo con register.id
+        type: 'deposit',
+        movement_type: 'in',
+        amount: openingAmount,
+        description: 'Apertura de caja',
+        reason: 'Apertura de caja',
+        reference: 'OPENING',
+        employee_id: employeeId,
+        employee_name: emp?.name || '',
+        created_at: new Date().toISOString(),
+      }],
     });
+    // mockBackend.create asignó id; rellenamos cash_register_id en el primer
+    // movement para que las queries por id funcionen.
+    if (register?.id && Array.isArray(register.movements)) {
+      register.movements[0].cash_register_id = register.id;
+      update('cash_registers', register.id, { movements: register.movements } as any);
+    }
     return register as CashRegister;
   }
 
@@ -125,12 +173,17 @@ class WailsAuthService {
       }
     }
     const movements: any[] = Array.isArray(register.movements) ? register.movements : [];
-    const cashDeposits = movements
-      .filter(m => m.movement_type === 'deposit' || m.movement_type === 'in')
-      .reduce((s, m) => s + (m.amount || 0), 0);
-    const cashWithdrawals = movements
-      .filter(m => m.movement_type === 'withdrawal' || m.movement_type === 'out')
-      .reduce((s, m) => s + (m.amount || 0), 0);
+    // addCashMovement guarda `type`; el seed y openCashRegister escriben
+    // ambos campos. Aceptamos cualquiera para no perder movimientos.
+    // OPENING ya está reflejado en register.opening_amount → lo excluimos
+    // del cálculo para no duplicar.
+    const isDepositMov = (m: any) =>
+      m.reference !== 'OPENING' &&
+      (m.movement_type === 'deposit' || m.movement_type === 'in' || m.type === 'deposit' || m.type === 'in');
+    const isWithdrawMov = (m: any) =>
+      m.movement_type === 'withdrawal' || m.movement_type === 'out' || m.type === 'withdrawal' || m.type === 'out';
+    const cashDeposits = movements.filter(isDepositMov).reduce((s, m) => s + (m.amount || 0), 0);
+    const cashWithdrawals = movements.filter(isWithdrawMov).reduce((s, m) => s + (m.amount || 0), 0);
     // Expected drawer = opening + cash sales + cash-in movements - cash-out movements.
     const expectedAmount = (register.opening_amount || 0) + totalCash + cashDeposits - cashWithdrawals;
 
@@ -192,19 +245,25 @@ class WailsAuthService {
   ): Promise<void> {
     const register = getById<any>('cash_registers', registerId);
     if (!register) throw new Error('Caja no encontrada');
+    const emp = getById<any>('employees', employeeId);
     const movements = register.movements || [];
     movements.push({
       id: Date.now(),
       cash_register_id: registerId,
+      // Escribimos type Y movement_type para que tanto closeCashRegister
+      // (filtra movement_type) como la UI de historial (filtra type) lean
+      // el mismo movimiento.
       type,
+      movement_type: type === 'deposit' ? 'in' : 'out',
       amount,
       description,
       reason: description,
       reference,
       employee_id: employeeId,
+      employee_name: emp?.name || '',
       created_at: new Date().toISOString(),
     });
-    update('cash_registers', registerId, { movements });
+    update('cash_registers', registerId, { movements } as any);
   }
 
   async updateCashMovement(
@@ -238,37 +297,76 @@ class WailsAuthService {
     }
   }
 
-  async getCashRegisterReport(_reportId: number): Promise<CashRegisterReport> {
+  // Reporte de una caja específica. Antes devolvía solo ceros; ahora reusa
+  // closeCashRegister-style math sobre los datos persistidos, lo que da un
+  // snapshot real cuando el usuario abre "Ver reporte" desde el historial.
+  async getCashRegisterReport(reportId: number): Promise<CashRegisterReport> {
+    const register = getById<any>('cash_registers', reportId);
+    if (!register) {
+      throw new Error('Caja no encontrada');
+    }
+    const sales = getAll<any>('sales').filter((s: any) => s.cash_register_id === reportId);
+    const methodsCatalog = getAll<any>('payment_methods');
+    const methodById = new Map<number, any>(methodsCatalog.map((m: any) => [m.id, m]));
+
+    let totalSales = 0, totalCash = 0, totalCard = 0, totalDigital = 0, totalOther = 0;
+    let totalDiscounts = 0, totalTax = 0;
+    for (const sale of sales) {
+      totalSales += sale.total || 0;
+      totalDiscounts += sale.discount || 0;
+      totalTax += sale.tax || 0;
+      const details: any[] = Array.isArray(sale.payment_details) ? sale.payment_details : [];
+      for (const d of details) {
+        const method = d.payment_method || methodById.get(d.payment_method_id);
+        const type = (method?.type || 'cash').toLowerCase();
+        const amount = d.amount || 0;
+        if (type === 'cash') totalCash += amount;
+        else if (type === 'card' || type === 'debit' || type === 'credit') totalCard += amount;
+        else if (type === 'digital' || type === 'transfer' || type === 'qr') totalDigital += amount;
+        else totalOther += amount;
+      }
+    }
+    const movements: any[] = Array.isArray(register.movements) ? register.movements : [];
+    const cashDeposits = movements
+      .filter((m: any) => m.reference !== 'OPENING' && (m.movement_type === 'in' || m.movement_type === 'deposit' || m.type === 'deposit' || m.type === 'in'))
+      .reduce((s: number, m: any) => s + (m.amount || 0), 0);
+    const cashWithdrawals = movements
+      .filter((m: any) => m.movement_type === 'out' || m.movement_type === 'withdrawal' || m.type === 'withdrawal' || m.type === 'out')
+      .reduce((s: number, m: any) => s + (m.amount || 0), 0);
+    const expected = (register.opening_amount || 0) + totalCash + cashDeposits - cashWithdrawals;
+
     return {
-      id: _reportId,
-      cash_register_id: 0,
-      date: new Date().toISOString(),
-      total_sales: 0,
-      total_cash: 0,
-      total_card: 0,
-      total_digital: 0,
-      total_other: 0,
+      id: reportId,
+      cash_register_id: reportId,
+      date: register.opened_at || new Date().toISOString(),
+      total_sales: totalSales,
+      total_cash: totalCash,
+      total_card: totalCard,
+      total_digital: totalDigital,
+      total_other: totalOther,
       total_refunds: 0,
-      total_discounts: 0,
-      total_tax: 0,
-      number_of_sales: 0,
+      total_discounts: totalDiscounts,
+      total_tax: totalTax,
+      number_of_sales: sales.length,
       number_of_refunds: 0,
-      cash_deposits: 0,
-      cash_withdrawals: 0,
-      opening_balance: 0,
-      closing_balance: 0,
-      expected_balance: 0,
-      difference: 0,
-      notes: '',
-      generated_by: 0,
-      created_at: new Date().toISOString(),
+      cash_deposits: cashDeposits,
+      cash_withdrawals: cashWithdrawals,
+      opening_balance: register.opening_amount || 0,
+      closing_balance: register.closing_amount || 0,
+      expected_balance: expected,
+      difference: (register.closing_amount || 0) - expected,
+      notes: register.notes || '',
+      generated_by: register.employee_id || 0,
+      created_at: register.closed_at || register.opened_at || new Date().toISOString(),
     } as CashRegisterReport;
   }
 
   async printCurrentCashRegisterReport(_registerId: number): Promise<void> {
+    if (typeof window !== 'undefined' && typeof window.print === 'function') window.print();
   }
 
   async printLastCashRegisterReport(_employeeId: number): Promise<void> {
+    if (typeof window !== 'undefined' && typeof window.print === 'function') window.print();
   }
 
   async getEmployees(): Promise<Employee[]> {

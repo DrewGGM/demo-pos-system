@@ -72,12 +72,38 @@ class WailsComboService {
   async expandComboToOrderItems(comboId: number, quantity: number): Promise<{ items: any[]; totalPrice: number }> {
     const combo = getById<any>('combos', comboId);
     if (!combo) throw new Error('Combo not found');
-    const items = (combo.items || []).map((item: any) => ({
-      product_id: item.product_id,
-      quantity: (item.quantity || 1) * quantity,
-      price: 0,
-    }));
-    return { items, totalPrice: (combo.price || 0) * quantity };
+    // Distribuir el precio del combo proporcionalmente al precio normal de
+    // cada producto, para que cada line item entre al carrito con un precio
+    // razonable. Antes todos los items entraban con price:0 → el cálculo
+    // del subtotal del POS se rompía al editar línea.
+    const products = getAll<any>('products');
+    const productById = new Map<number, any>(products.map((p: any) => [p.id, p]));
+    const lines = (combo.items || []).map((item: any) => {
+      const product = productById.get(item.product_id);
+      const productPrice = (product?.price || 0) * (item.quantity || 1);
+      return { item, product, productPrice };
+    });
+    const subtotal = lines.reduce((s: number, l: any) => s + l.productPrice, 0);
+    const comboPrice = combo.price || 0;
+    const ratio = subtotal > 0 ? comboPrice / subtotal : 1;
+    const items = lines.map(({ item, product, productPrice }: any) => {
+      const lineQty = (item.quantity || 1) * quantity;
+      const unitPrice = product
+        ? Math.round((productPrice * ratio) / Math.max(1, item.quantity || 1))
+        : 0;
+      return {
+        product_id: item.product_id,
+        product,
+        quantity: lineQty,
+        unit_price: unitPrice,
+        price: unitPrice,
+        subtotal: unitPrice * lineQty,
+        notes: '',
+        modifiers: [],
+        combo_id: comboId,
+      };
+    });
+    return { items, totalPrice: comboPrice * quantity };
   }
 
   async addItemToCombo(comboId: number, productId: number, quantity: number): Promise<Combo> {

@@ -56,18 +56,147 @@ const sampleProviders = [
   { id: 2, name: 'Juan Perez', nit: '1234567890', person_type: 'Natural', phone: '3105551234', product_type: 'Verduras', balance: 120000 },
 ];
 
+// Helpers para construir entries derivadas de las ventas reales del demo.
+// Antes el módulo era 100% estático y nadie podía ver cómo cambiaba el
+// libro al hacer una venta nueva.
+function loadStoredEntries(): any[] {
+  try {
+    const raw = localStorage.getItem('pos_demo_journal_entries');
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return [];
+}
+
+function saveStoredEntries(entries: any[]) {
+  try { localStorage.setItem('pos_demo_journal_entries', JSON.stringify(entries)); } catch {}
+}
+
+function localDay(iso: string | undefined): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// Construye asientos sintéticos para las ventas (uno por día) + el seed.
+function buildEntriesFromSales(start?: string, end?: string): any[] {
+  let sales: any[] = [];
+  try {
+    const raw = localStorage.getItem('pos_demo_sales');
+    if (raw) sales = JSON.parse(raw);
+  } catch {}
+  const byDay = new Map<string, number>();
+  for (const s of sales) {
+    const day = localDay(s.created_at);
+    if (!day) continue;
+    if (start && day < start) continue;
+    if (end && day > end) continue;
+    byDay.set(day, (byDay.get(day) || 0) + (s.total || 0));
+  }
+  const generated: any[] = [];
+  let nextId = 1000;
+  for (const [day, total] of byDay) {
+    if (total <= 0) continue;
+    generated.push({
+      id: nextId,
+      entry_number: nextId,
+      date: day,
+      description: `Ventas del día ${day}`,
+      reference: `VTA-${day}`,
+      status: 'active',
+      source: 'sales_aggregate',
+      total_debit: total,
+      total_credit: total,
+      lines: [
+        { id: nextId * 10 + 1, entry_id: nextId, account_id: 4, account: sampleAccounts[3], debit: total, credit: 0, notes: 'Efectivo / bancos' },
+        { id: nextId * 10 + 2, entry_id: nextId, account_id: 17, account: sampleAccounts[16], debit: 0, credit: total, notes: 'Ventas del día' },
+      ],
+      created_at: `${day}T22:00:00Z`,
+    });
+    nextId++;
+  }
+  return generated;
+}
+
 // Chart of Accounts
 export async function GetAllAccounts() { return sampleAccounts; }
 export async function GetAccounts() { return sampleAccounts; }
-export async function CreateAccount(_a: any) { return _a; }
-export async function DeleteAccount(_id: number) {}
-
-// Journal Entries
-export async function GetEntries(_start?: string, _end?: string, _q?: string, _limit?: number, _offset?: number) {
-  return [sampleEntries, sampleEntries.length] as any;
+export async function CreateAccount(a: any) {
+  const accounts = loadStoredAccounts();
+  const next = { ...a, id: Date.now() };
+  accounts.push(next);
+  saveStoredAccounts(accounts);
+  return next;
 }
-export async function CreateEntry(_req: any, _ctx?: any) { return sampleEntries[0]; }
-export async function VoidEntry(_id: number, _ctx?: any) {}
+export async function DeleteAccount(id: number) {
+  const accounts = loadStoredAccounts().filter((a: any) => a.id !== id);
+  saveStoredAccounts(accounts);
+}
+
+function loadStoredAccounts(): any[] {
+  try {
+    const raw = localStorage.getItem('pos_demo_accounting_accounts');
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return [];
+}
+function saveStoredAccounts(accounts: any[]) {
+  try { localStorage.setItem('pos_demo_accounting_accounts', JSON.stringify(accounts)); } catch {}
+}
+
+// Journal Entries — devuelve seed + asientos generados a partir de ventas
+// + entries manuales creadas por el usuario en la sesión, filtrados por rango.
+export async function GetEntries(start?: string, end?: string, q?: string, limit?: number, offset?: number) {
+  const stored = loadStoredEntries();
+  const generated = buildEntriesFromSales(start, end);
+  const seeded = sampleEntries.filter((e: any) => {
+    if (start && e.date < start) return false;
+    if (end && e.date > end) return false;
+    return true;
+  });
+  let combined = [...seeded, ...generated, ...stored.filter((e: any) => {
+    if (start && e.date < start) return false;
+    if (end && e.date > end) return false;
+    return true;
+  })];
+  if (q) {
+    const ql = q.toLowerCase();
+    combined = combined.filter((e: any) =>
+      (e.description || '').toLowerCase().includes(ql) ||
+      (e.reference || '').toLowerCase().includes(ql)
+    );
+  }
+  combined.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  const total = combined.length;
+  const off = offset || 0;
+  const lim = limit || combined.length;
+  return [combined.slice(off, off + lim), total] as any;
+}
+
+export async function CreateEntry(req: any, _ctx?: any) {
+  const stored = loadStoredEntries();
+  const next = {
+    ...req,
+    id: Date.now(),
+    entry_number: stored.length + 100,
+    status: 'active',
+    source: req.source || 'manual',
+    created_at: new Date().toISOString(),
+  };
+  stored.push(next);
+  saveStoredEntries(stored);
+  return next;
+}
+
+export async function VoidEntry(id: number, _ctx?: any) {
+  const stored = loadStoredEntries();
+  const idx = stored.findIndex((e: any) => e.id === id);
+  if (idx >= 0) {
+    stored[idx].status = 'voided';
+    stored[idx].voided_at = new Date().toISOString();
+    saveStoredEntries(stored);
+  }
+}
 
 // Ledger
 export async function GetLedger(_year: number, _month: number) {

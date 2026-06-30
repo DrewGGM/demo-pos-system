@@ -45,6 +45,20 @@ function computeStats(): DashboardStats {
   const activeTables = tables.filter((t: any) => t.status === 'occupied').length;
   const lowStock = products.filter((p: any) => p.track_inventory && p.stock <= 5).length;
 
+  // sales_growth: comparar últimos 7 días vs los 7 anteriores. Antes
+  // siempre devolvía 5.2 hardcodeado y el dashboard mentía sobre crecimiento.
+  const sevenDaysAgo = Date.now() - 7 * 86400000;
+  const fourteenDaysAgo = Date.now() - 14 * 86400000;
+  const sumIfBetween = (from: number, to: number) =>
+    sales.reduce((sum: number, s: any) => {
+      const t = new Date(s.created_at || 0).getTime();
+      if (t >= from && t < to) return sum + (s.total || 0);
+      return sum;
+    }, 0);
+  const last7 = sumIfBetween(sevenDaysAgo, Date.now());
+  const prev7 = sumIfBetween(fourteenDaysAgo, sevenDaysAgo);
+  const salesGrowth = prev7 === 0 ? (last7 > 0 ? 100 : 0) : ((last7 - prev7) / prev7) * 100;
+
   // Top selling items — aggregate every product across every sale (not
   // limited to today) so the demo dashboard has something interesting to
   // show even right after a fresh boot. We rank by units sold; ties broken
@@ -79,7 +93,7 @@ function computeStats(): DashboardStats {
     pending_orders: pendingOrders,
     low_stock_products: lowStock,
     active_tables: activeTables,
-    sales_growth: 5.2,
+    sales_growth: Math.round(salesGrowth * 10) / 10,
     average_ticket: todaySales.length > 0 ? totalSalesAmount / todaySales.length : 0,
     top_selling_items,
   };
