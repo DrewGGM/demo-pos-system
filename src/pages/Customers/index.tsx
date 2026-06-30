@@ -149,6 +149,15 @@ const Customers: React.FC = () => {
       toast.error('El email es requerido');
       return;
     }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(customerForm.email.trim())) {
+      toast.error('Email inválido');
+      return;
+    }
+    if (customerForm.phone?.trim() && !/^[0-9+\-\s()]{5,20}$/.test(customerForm.phone.trim())) {
+      toast.error('Teléfono inválido (solo dígitos, +, -, espacios)');
+      return;
+    }
 
     try {
       // Map form fields to backend fields

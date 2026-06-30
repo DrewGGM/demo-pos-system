@@ -55,7 +55,8 @@ import {
   Email as EmailIcon,
   Support as SupportIcon,
 } from '@mui/icons-material';
-import { useAuth, useWebSocket, useDIANMode, useNotifications, usePermissions, useSyncMonitor } from '../hooks';
+import { useAuth, useWebSocket, useDIANMode, useNotifications, usePermissions, useSyncMonitor, useInactivityLogout } from '../hooks';
+import { toast } from 'react-toastify';
 import { Warning as WarningIcon, CheckCircle as CheckCircleIcon, Error as ErrorIcon, Info as InfoIcon } from '@mui/icons-material';
 import { wailsConfigService } from '../services/wailsConfigService';
 import { wailsLicenseService } from '../services/wailsLicenseService';
@@ -336,6 +337,16 @@ const MainLayout: React.FC = () => {
     logout();
     navigate('/login');
   };
+
+  // Cierre automático tras inactividad. Solo corre cuando hay sesión activa;
+  // el umbral se configura desde Settings → Seguridad. El handler reusa el
+  // mismo logout del menú para que la limpieza (token, contexto, navegación)
+  // sea idéntica al cierre manual.
+  useInactivityLogout(() => {
+    toast.info('Sesión cerrada por inactividad', { toastId: 'auto-logout' });
+    logout();
+    navigate('/login');
+  }, !!user);
 
   const handleNavigate = (path: string) => {
     navigate(path);

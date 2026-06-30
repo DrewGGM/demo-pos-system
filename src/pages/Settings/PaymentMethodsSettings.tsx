@@ -81,7 +81,20 @@ const PaymentMethodsSettings: React.FC = () => {
   };
 
   const loadDIANPaymentMethods = async () => {
-    setDIANPaymentMethods([]);
+    // Subconjunto del catálogo DIAN (Resolución 0042/2020) más usado por
+    // restaurantes y comercios. La instalación real carga esto desde el
+    // backend; en la demo lo dejamos estático para que el dropdown sea útil.
+    setDIANPaymentMethods([
+      { id: 10, code: '10', name: 'Efectivo' },
+      { id: 20, code: '20', name: 'Cheque' },
+      { id: 42, code: '42', name: 'Consignación bancaria' },
+      { id: 47, code: '47', name: 'Transferencia bancaria' },
+      { id: 48, code: '48', name: 'Tarjeta crédito' },
+      { id: 49, code: '49', name: 'Tarjeta débito' },
+      { id: 71, code: '71', name: 'Bonos' },
+      { id: 72, code: '72', name: 'Vales' },
+      { id: 1, code: '1', name: 'Instrumento no definido' },
+    ]);
   };
 
   const handleOpenDialog = (method?: PaymentMethod) => {

@@ -112,7 +112,13 @@ const Employees: React.FC = () => {
 
     try {
       if (selectedEmployee) {
-        await wailsAuthService.updateEmployee(selectedEmployee.id!, employeeForm);
+        // On edit, only send password/pin if the cashier typed a new one;
+        // an empty field means "keep the existing credential".
+        const { password, pin, ...rest } = employeeForm;
+        const patch: any = { ...rest };
+        if (password && password.trim()) patch.password = password.trim();
+        if (pin && pin.trim()) patch.pin = pin.trim();
+        await wailsAuthService.updateEmployee(selectedEmployee.id!, patch);
         toast.success('Empleado actualizado');
       } else {
         // CreateEmployee with password and PIN from form

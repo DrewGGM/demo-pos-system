@@ -93,7 +93,20 @@ const POS: React.FC = () => {
   const [showCombosTab, setShowCombosTab] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentOrder, setCurrentOrder] = useState<Order | null>(null);
-  const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
+  const [orderItems, setOrderItems] = useState<OrderItem[]>(() => {
+    // Restaura el carrito al recargar la página para que el cajero no pierda
+    // una venta a medio digitar. Solo aplica cuando el operador NO viene
+    // desde "editar orden existente" (location.state.order) — ese flujo lo
+    // sobrescribe en el useEffect dedicado, igual que en producción.
+    try {
+      const raw = localStorage.getItem('pos_demo_draft_cart');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {}
+    return [];
+  });
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
@@ -148,7 +161,13 @@ const POS: React.FC = () => {
   const [selectedItemForModifierEdit, setSelectedItemForModifierEdit] = useState<OrderItem | null>(null);
   const [selectedItemForNotes, setSelectedItemForNotes] = useState<OrderItem | null>(null);
   const [itemNotes, setItemNotes] = useState('');
-  const [deliveryInfo, setDeliveryInfo] = useState<DeliveryInfo>({ customerName: '', address: '', phone: '' });
+  const [deliveryInfo, setDeliveryInfo] = useState<DeliveryInfo>(() => {
+    try {
+      const raw = localStorage.getItem('pos_demo_draft_delivery');
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    return { customerName: '', address: '', phone: '' };
+  });
 
   const [needsElectronicInvoice, setNeedsElectronicInvoice] = useState(false);
   const effectiveNeedsElectronicInvoice = isDIANMode || needsElectronicInvoice;
@@ -184,6 +203,33 @@ const POS: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('pos.activePriceListId', String(activePriceListId));
   }, [activePriceListId]);
+
+  // Persist the in-progress cart so a refresh / accidental tab close doesn't
+  // lose the sale the cashier was building. Only saves "loose" carts (no
+  // currentOrder loaded from the server — those round-trip via the orders
+  // table). The keys live next to other pos_demo_* state in localStorage.
+  useEffect(() => {
+    if (currentOrder?.id) return; // existing orders persist server-side
+    try {
+      if (orderItems.length === 0) {
+        localStorage.removeItem('pos_demo_draft_cart');
+      } else {
+        localStorage.setItem('pos_demo_draft_cart', JSON.stringify(orderItems));
+      }
+    } catch {}
+  }, [orderItems, currentOrder]);
+
+  useEffect(() => {
+    if (currentOrder?.id) return;
+    try {
+      const empty = !deliveryInfo.customerName && !deliveryInfo.address && !deliveryInfo.phone;
+      if (empty) {
+        localStorage.removeItem('pos_demo_draft_delivery');
+      } else {
+        localStorage.setItem('pos_demo_draft_delivery', JSON.stringify(deliveryInfo));
+      }
+    } catch {}
+  }, [deliveryInfo, currentOrder]);
 
   // Load PriceList catalog + overrides into local state. Service shape
   // matches the production Wails binding so the cart helpers below stay
@@ -815,6 +861,17 @@ const POS: React.FC = () => {
       return null;
     }
 
+    // Domicilio: el repartidor necesita al menos dirección y teléfono para
+    // poder salir. Antes la orden se guardaba sin esos datos y el cocinero
+    // tenía que llamar al cajero.
+    if (selectedOrderType?.code === 'delivery' || selectedOrderType?.code === 'domicilio') {
+      if (!deliveryInfo.address?.trim() || !deliveryInfo.phone?.trim()) {
+        toast.error('Domicilio requiere dirección y teléfono del cliente');
+        setDeliveryDialogOpen(true);
+        return null;
+      }
+    }
+
 
     setIsSavingOrder(true);
     try {
@@ -896,6 +953,15 @@ const POS: React.FC = () => {
       isProcessingPaymentRef.current = false;
       toast.error('Debes seleccionar una mesa para pedidos "Para Comer Aquí"');
       return;
+    }
+
+    if (selectedOrderType?.code === 'delivery' || selectedOrderType?.code === 'domicilio') {
+      if (!deliveryInfo.address?.trim() || !deliveryInfo.phone?.trim()) {
+        isProcessingPaymentRef.current = false;
+        toast.error('Domicilio requiere dirección y teléfono del cliente');
+        setDeliveryDialogOpen(true);
+        return;
+      }
     }
 
     setIsProcessingPayment(true);

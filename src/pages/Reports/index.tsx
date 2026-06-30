@@ -73,6 +73,8 @@ const Reports: React.FC = () => {
   const [customerStats, setCustomerStats] = useState<any>(null);
   const [keyMetrics, setKeyMetrics] = useState<any[]>([]);
   const [categoryComparison, setCategoryComparison] = useState<any[]>([]);
+  const [employeePerformance, setEmployeePerformance] = useState<any[]>([]);
+  const [inventoryReport, setInventoryReport] = useState<any | null>(null);
   const [stats, setStats] = useState({
     totalSales: 0,
     totalOrders: 0,
@@ -85,6 +87,13 @@ const Reports: React.FC = () => {
   useEffect(() => {
     loadReportData();
   }, [dateRange, reportType, isDIANMode]); // Reload when DIAN mode changes
+
+  // El conjunto de pestañas cambia según el tipo de reporte; reseteamos a la
+  // primera pestaña cuando el usuario cambia el tipo para no quedar en una
+  // pestaña inexistente.
+  useEffect(() => {
+    setSelectedTab(0);
+  }, [reportType]);
 
   const loadReportData = async () => {
     setLoading(true);
@@ -155,6 +164,17 @@ const Reports: React.FC = () => {
         } else {
           setCustomersData([]);
         }
+      }
+
+      // Cargar empleados / inventario sólo cuando el tipo de reporte lo pide
+      // para no malgastar trabajo agregando datos que nadie va a ver.
+      if (reportType === 'employees') {
+        const perf = await wailsReportsService.getEmployeePerformanceReport(startDateStr, endDateStr);
+        setEmployeePerformance(perf || []);
+      }
+      if (reportType === 'inventory') {
+        const inv = await wailsReportsService.getInventoryReport();
+        setInventoryReport(inv);
       }
     } catch (error) {
       toast.error('Error al cargar reportes');
@@ -489,22 +509,181 @@ const Reports: React.FC = () => {
         </Grid>
       </Grid>
 
-      {/* Tabs for different views */}
+      {/* Tabs for different views — the tab set adapts to the reportType so
+          Empleados/Inventario get their own dedicated panels instead of being
+          forced into the sales-centric layout. */}
       <Paper sx={{ mb: 3 }}>
         <Tabs
           value={selectedTab}
           onChange={(_, value) => setSelectedTab(value)}
           sx={{ borderBottom: 1, borderColor: 'divider' }}
         >
-          <Tab label="Tendencias" />
-          <Tab label="Productos" />
-          <Tab label="Métodos de Pago" />
-          <Tab label="Clientes" />
-          <Tab label="Comparativo" />
+          {reportType === 'employees' ? (
+            <Tab label="Desempeño por empleado" />
+          ) : reportType === 'inventory' ? (
+            [
+              <Tab key="inv-summary" label="Resumen" />,
+              <Tab key="inv-low" label="Stock bajo / agotado" />,
+              <Tab key="inv-top" label="Productos en movimiento" />,
+            ]
+          ) : (
+            [
+              <Tab key="sales-trend" label="Tendencias" />,
+              <Tab key="sales-products" label="Productos" />,
+              <Tab key="sales-payments" label="Métodos de Pago" />,
+              <Tab key="sales-customers" label="Clientes" />,
+              <Tab key="sales-compare" label="Comparativo" />,
+            ]
+          )}
         </Tabs>
       </Paper>
 
-      {/* Charts */}
+      {/* Empleados */}
+      {reportType === 'employees' && (
+        <Paper sx={{ p: 2 }}>
+          <Typography variant="h6" gutterBottom>
+            Desempeño por empleado
+          </Typography>
+          {employeePerformance.length === 0 ? (
+            <Typography variant="body2" color="text.secondary">
+              No hay ventas registradas en el período seleccionado.
+            </Typography>
+          ) : (
+            <>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={employeePerformance.map((e: any) => ({
+                  name: e.employee_name,
+                  ventas: e.total_sales,
+                  ordenes: e.number_of_sales,
+                }))}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis yAxisId="left" />
+                  <YAxis yAxisId="right" orientation="right" />
+                  <Tooltip formatter={(value: any, name: any) => name === 'ventas' ? `$${Number(value).toLocaleString('es-CO')}` : value} />
+                  <Legend />
+                  <Bar yAxisId="left" dataKey="ventas" fill="#8884d8" name="Ventas ($)" />
+                  <Bar yAxisId="right" dataKey="ordenes" fill="#82ca9d" name="Órdenes" />
+                </BarChart>
+              </ResponsiveContainer>
+              <Box sx={{ mt: 2 }}>
+                {employeePerformance.map((e: any) => (
+                  <Box key={e.employee_id} sx={{ display: 'flex', justifyContent: 'space-between', py: 1, borderBottom: 1, borderColor: 'divider' }}>
+                    <Typography variant="body2">{e.employee_name}</Typography>
+                    <Box sx={{ display: 'flex', gap: 3 }}>
+                      <Typography variant="body2" color="text.secondary">{e.number_of_sales} ventas</Typography>
+                      <Typography variant="body2" color="text.secondary">{e.total_items} items</Typography>
+                      <Typography variant="body2" fontWeight="bold">${e.total_sales.toLocaleString('es-CO')}</Typography>
+                      <Typography variant="body2" color="text.secondary">Promedio ${Math.round(e.average_sale).toLocaleString('es-CO')}</Typography>
+                    </Box>
+                  </Box>
+                ))}
+              </Box>
+            </>
+          )}
+        </Paper>
+      )}
+
+      {/* Inventario */}
+      {reportType === 'inventory' && inventoryReport && (
+        <Grid container spacing={3}>
+          {selectedTab === 0 && (
+            <>
+              <Grid item xs={12} sm={4}>
+                <Paper sx={{ p: 2, textAlign: 'center' }}>
+                  <InventoryIcon sx={{ fontSize: 40, color: 'primary.main' }} />
+                  <Typography variant="h4">{inventoryReport.total_products}</Typography>
+                  <Typography variant="body2" color="text.secondary">Productos totales</Typography>
+                </Paper>
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <Paper sx={{ p: 2, textAlign: 'center' }}>
+                  <MoneyIcon sx={{ fontSize: 40, color: 'success.main' }} />
+                  <Typography variant="h4">${(inventoryReport.total_value || 0).toLocaleString('es-CO')}</Typography>
+                  <Typography variant="body2" color="text.secondary">Valor del inventario</Typography>
+                </Paper>
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <Paper sx={{ p: 2, textAlign: 'center' }}>
+                  <AssessmentIcon sx={{ fontSize: 40, color: 'warning.main' }} />
+                  <Typography variant="h4">{(inventoryReport.low_stock_items || []).length + (inventoryReport.out_of_stock_items || []).length}</Typography>
+                  <Typography variant="body2" color="text.secondary">Productos con alerta</Typography>
+                </Paper>
+              </Grid>
+              <Grid item xs={12}>
+                <Paper sx={{ p: 2 }}>
+                  <Typography variant="h6" gutterBottom>Inventario por categoría</Typography>
+                  {(inventoryReport.category_breakdown || []).length === 0 ? (
+                    <Typography variant="body2" color="text.secondary">Sin datos.</Typography>
+                  ) : (
+                    (inventoryReport.category_breakdown || []).map((c: any, i: number) => (
+                      <Box key={i} sx={{ display: 'flex', justifyContent: 'space-between', py: 1, borderBottom: 1, borderColor: 'divider' }}>
+                        <Typography variant="body2">{c.name}</Typography>
+                        <Box sx={{ display: 'flex', gap: 3 }}>
+                          <Typography variant="body2" color="text.secondary">{c.products} productos</Typography>
+                          <Typography variant="body2" color="warning.main">{c.lowStock} bajos</Typography>
+                          <Typography variant="body2" fontWeight="bold">${(c.value || 0).toLocaleString('es-CO')}</Typography>
+                        </Box>
+                      </Box>
+                    ))
+                  )}
+                </Paper>
+              </Grid>
+            </>
+          )}
+          {selectedTab === 1 && (
+            <Grid item xs={12}>
+              <Paper sx={{ p: 2 }}>
+                <Typography variant="h6" gutterBottom>Stock bajo (≤ 5 unidades)</Typography>
+                {(inventoryReport.low_stock_items || []).length === 0 ? (
+                  <Typography variant="body2" color="text.secondary">Ningún producto en stock bajo.</Typography>
+                ) : (
+                  (inventoryReport.low_stock_items || []).map((p: any) => (
+                    <Box key={p.id} sx={{ display: 'flex', justifyContent: 'space-between', py: 1, borderBottom: 1, borderColor: 'divider' }}>
+                      <Typography variant="body2">{p.name}</Typography>
+                      <Chip label={`${p.stock} u.`} color="warning" size="small" />
+                    </Box>
+                  ))
+                )}
+                <Typography variant="h6" sx={{ mt: 3 }} gutterBottom>Agotado</Typography>
+                {(inventoryReport.out_of_stock_items || []).length === 0 ? (
+                  <Typography variant="body2" color="text.secondary">Ningún producto agotado.</Typography>
+                ) : (
+                  (inventoryReport.out_of_stock_items || []).map((p: any) => (
+                    <Box key={p.id} sx={{ display: 'flex', justifyContent: 'space-between', py: 1, borderBottom: 1, borderColor: 'divider' }}>
+                      <Typography variant="body2">{p.name}</Typography>
+                      <Chip label="Agotado" color="error" size="small" />
+                    </Box>
+                  ))
+                )}
+              </Paper>
+            </Grid>
+          )}
+          {selectedTab === 2 && (
+            <Grid item xs={12}>
+              <Paper sx={{ p: 2 }}>
+                <Typography variant="h6" gutterBottom>Productos más vendidos (últimos 30 días)</Typography>
+                {(inventoryReport.top_moving_items || []).length === 0 ? (
+                  <Typography variant="body2" color="text.secondary">Sin movimientos recientes.</Typography>
+                ) : (
+                  (inventoryReport.top_moving_items || []).map((p: any) => (
+                    <Box key={p.product_id} sx={{ display: 'flex', justifyContent: 'space-between', py: 1, borderBottom: 1, borderColor: 'divider' }}>
+                      <Typography variant="body2">{p.product_name}</Typography>
+                      <Box sx={{ display: 'flex', gap: 3 }}>
+                        <Typography variant="body2" color="text.secondary">{p.quantity} unidades</Typography>
+                        <Typography variant="body2" fontWeight="bold">${(p.total_sales || 0).toLocaleString('es-CO')}</Typography>
+                      </Box>
+                    </Box>
+                  ))
+                )}
+              </Paper>
+            </Grid>
+          )}
+        </Grid>
+      )}
+
+      {/* Charts (sales/products/customers reports) */}
+      {(reportType === 'sales' || reportType === 'products' || reportType === 'customers') && (
       <Grid container spacing={3}>
         {selectedTab === 0 && (
           <>
@@ -815,6 +994,7 @@ const Reports: React.FC = () => {
           </>
         )}
       </Grid>
+      )}
     </Box>
   );
 };

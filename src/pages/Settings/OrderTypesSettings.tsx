@@ -140,6 +140,11 @@ const OrderTypesSettings: React.FC = () => {
         return;
       }
 
+      if (formData.requires_sequential_number && !formData.sequence_prefix?.trim()) {
+        toast.error('Si activa numeración secuencial debe definir un prefijo (ej: D-)');
+        return;
+      }
+
       if (formData.skip_payment_dialog && !formData.default_payment_method_id) {
         toast.error('Debe seleccionar un método de pago por defecto');
         return;
@@ -404,7 +409,8 @@ const OrderTypesSettings: React.FC = () => {
                 <Grid item xs={12}>
                   <TextField
                     fullWidth
-                    label="Prefijo de secuencia (opcional)"
+                    required
+                    label="Prefijo de secuencia"
                     value={formData.sequence_prefix || ''}
                     onChange={(e) => setFormData({ ...formData, sequence_prefix: e.target.value })}
                     helperText="Ej: D- para Domicilios"

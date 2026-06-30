@@ -264,10 +264,22 @@ class WailsSalesService {
     const products = getAll<any>('products');
     const categories = getAll<any>('categories');
 
+    // created_at es ISO con hora. El filtro previo usaba ">" contra una
+    // fecha sin hora, lo que excluía todas las ventas hechas el último día
+    // del rango. Comparamos la parte YYYY-MM-DD local para que el rango
+    // sea inclusivo en ambos extremos.
+    const dayKey = (iso: string | undefined): string => {
+      if (!iso) return '';
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return '';
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    };
     const filtered = sales.filter((s: any) => {
-      if (startDate && s.created_at < startDate) return false;
-      if (endDate && s.created_at > endDate) return false;
-      return s.status !== 'refunded';
+      if (s.status === 'refunded') return false;
+      const d = dayKey(s.created_at);
+      if (startDate && d < startDate) return false;
+      if (endDate && d > endDate) return false;
+      return true;
     });
 
     // Aggregate by product
@@ -280,13 +292,20 @@ class WailsSalesService {
         if (!productStats[pid]) {
           const product = products.find((p: any) => p.id === pid);
           const category = categories.find((c: any) => c.id === product?.category_id);
+          // Si el producto no tiene costo configurado asumimos 45% del precio
+          // (margen bruto típico de restaurante) para que el reporte muestre
+          // datos útiles en la demo en vez de "Sin costo". Se marca con
+          // _estimated para que la UI pueda diferenciarlos si quiere.
+          const rawCost = product?.cost || 0;
+          const estimatedCost = rawCost > 0 ? rawCost : Math.round((product?.price || 0) * 0.45);
           productStats[pid] = {
             product_id: pid,
             product_name: product?.name || 'Producto',
             category_name: category?.name || '',
             unit_price: product?.price || 0,
-            unit_cost: product?.cost || 0,
-            unit_margin: (product?.price || 0) - (product?.cost || 0),
+            unit_cost: estimatedCost,
+            cost_is_estimated: rawCost === 0,
+            unit_margin: (product?.price || 0) - estimatedCost,
             margin_pct: 0,
             qty_sold: 0,
             total_revenue: 0,
@@ -295,9 +314,13 @@ class WailsSalesService {
           };
         }
         const stat = productStats[pid];
-        stat.qty_sold += item.quantity || 0;
-        stat.total_revenue += item.subtotal || 0;
-        stat.total_cost += stat.unit_cost * (item.quantity || 0);
+        const lineQty = item.quantity || 0;
+        // Algunas líneas (ítems editados en la cocina, descuentos por línea)
+        // guardan total y no subtotal. Tomamos lo primero disponible.
+        const lineRevenue = item.subtotal ?? item.total ?? (item.unit_price || 0) * lineQty;
+        stat.qty_sold += lineQty;
+        stat.total_revenue += lineRevenue;
+        stat.total_cost += stat.unit_cost * lineQty;
         stat.total_profit = stat.total_revenue - stat.total_cost;
         stat.margin_pct = stat.total_revenue > 0 ? (stat.total_profit / stat.total_revenue) * 100 : 0;
       }

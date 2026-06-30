@@ -10,3 +10,5 @@ export type { UseDialogOptions, UseDialogReturn, ConfirmDialogOptions } from './
 
 export { useCRUD, useFilteredItems } from './useCRUD';
 export type { CRUDConfig, UseCRUDReturn, UseFilteredItemsOptions } from './useCRUD';
+
+export { useInactivityLogout, getInactivityMinutes, setInactivityMinutes } from './useInactivityLogout';

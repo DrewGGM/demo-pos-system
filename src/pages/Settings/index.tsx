@@ -103,6 +103,10 @@ import GeneralSettings, {
   loadModuleConfig,
   isModuleEnabled
 } from './GeneralSettings';
+import {
+  getInactivityMinutes,
+  setInactivityMinutes as setInactivityMinutesPref,
+} from '../../hooks/useInactivityLogout';
 
 interface Department {
   id: number;
@@ -323,6 +327,11 @@ const Settings: React.FC = () => {
     } catch { /* fall through to defaults */ }
     return systemSettingsDefaults;
   });
+
+  // Auto-logout threshold (minutes). Persistence is handled by the hook's
+  // setter so other tabs / windows pick up the change immediately via the
+  // dispatched event.
+  const [inactivityMinutes, setInactivityMinutes] = useState<number>(() => getInactivityMinutes());
 
   // Auto-persist on every change so the operator never sees "I changed
   // this but it didn't stick". No explicit Save button needed — these are
@@ -3570,6 +3579,31 @@ const Settings: React.FC = () => {
                       </FormControl>
                     </Grid>
                   </Grid>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* Security / Inactivity */}
+            <Grid item xs={12} md={6}>
+              <Card>
+                <CardContent>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                    <SecurityIcon sx={{ mr: 1 }} />
+                    <Typography variant="h6">Seguridad</Typography>
+                  </Box>
+                  <TextField
+                    fullWidth
+                    type="number"
+                    label="Cerrar sesión por inactividad (minutos)"
+                    value={inactivityMinutes}
+                    onChange={(e) => {
+                      const v = Math.max(0, parseInt(e.target.value, 10) || 0);
+                      setInactivityMinutes(v);
+                      setInactivityMinutesPref(v);
+                    }}
+                    inputProps={{ min: 0, max: 240 }}
+                    helperText="0 para desactivar. Se aplica de inmediato a todos los usuarios."
+                  />
                 </CardContent>
               </Card>
             </Grid>
