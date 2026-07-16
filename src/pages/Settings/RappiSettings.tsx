@@ -48,6 +48,7 @@ import {
   Assignment as AssignmentIcon,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
+import { useConfirm } from '../../contexts/ConfirmContext';
 import {
   wailsRappiService,
   RappiConfig,
@@ -57,6 +58,7 @@ import {
 } from '../../services/wailsRappiService';
 
 const RappiSettings: React.FC = () => {
+  const confirm = useConfirm();
   const [config, setConfig] = useState<RappiConfig | null>(null);
   const [status, setStatus] = useState<ConnectionStatus | null>(null);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -143,7 +145,7 @@ const RappiSettings: React.FC = () => {
   };
 
   const handleResetStats = async () => {
-    if (!confirm('¿Está seguro de que desea resetear las estadísticas?')) {
+    if (!(await confirm({ message: '¿Está seguro de que desea resetear las estadísticas?', variant: 'danger' }))) {
       return;
     }
 

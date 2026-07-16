@@ -38,6 +38,7 @@ import {
   CameraAlt as CameraIcon,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
+import { useConfirm } from '../../contexts/ConfirmContext';
 import { PaymentMethod } from '../../types/models';
 import { wailsSalesService } from '../../services/wailsSalesService';
 
@@ -48,6 +49,7 @@ interface DIANPaymentMethod {
 }
 
 const PaymentMethodsSettings: React.FC = () => {
+  const confirm = useConfirm();
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [dianPaymentMethods, setDIANPaymentMethods] = useState<DIANPaymentMethod[]>([]);
   const [openDialog, setOpenDialog] = useState(false);
@@ -172,7 +174,7 @@ const PaymentMethodsSettings: React.FC = () => {
     try {
       const confirmMessage = '¿Está seguro de eliminar este método de pago?';
 
-      if (!window.confirm(confirmMessage)) {
+      if (!(await confirm({ message: confirmMessage, variant: 'danger' }))) {
         return;
       }
 

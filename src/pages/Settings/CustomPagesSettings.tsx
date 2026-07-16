@@ -27,10 +27,12 @@ import {
   ArrowDownward as ArrowDownwardIcon,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
+import { useConfirm } from '../../contexts/ConfirmContext';
 import { wailsCustomPageService } from '../../services/wailsCustomPageService';
 import { wailsProductService } from '../../services/wailsProductService';
 
 const CustomPagesSettings: React.FC = () => {
+  const confirm = useConfirm();
   const [pages, setPages] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [pageDialogOpen, setPageDialogOpen] = useState(false);
@@ -121,7 +123,7 @@ const CustomPagesSettings: React.FC = () => {
   };
 
   const handleDeletePage = async (id: number) => {
-    if (!window.confirm('¿Está seguro de eliminar esta página?')) return;
+    if (!(await confirm({ message: '¿Está seguro de eliminar esta página?', variant: 'danger' }))) return;
 
     try {
       await wailsCustomPageService.deletePage(id);
@@ -310,7 +312,7 @@ const CustomPagesSettings: React.FC = () => {
               <Typography variant="h6" gutterBottom>
                 Productos Disponibles
               </Typography>
-              <Box sx={{ maxHeight: '400px', overflow: 'auto', border: '1px solid #ddd', borderRadius: 1, p: 1 }}>
+              <Box sx={{ maxHeight: '400px', overflow: 'auto', border: '1px solid', borderColor: 'divider', borderRadius: 1, p: 1 }}>
                 <List dense>
                   {products
                     .filter(p => !selectedProductIds.includes(p.id))
@@ -335,7 +337,7 @@ const CustomPagesSettings: React.FC = () => {
               <Typography variant="h6" gutterBottom>
                 Productos Seleccionados (Orden de visualización)
               </Typography>
-              <Box sx={{ maxHeight: '400px', overflow: 'auto', border: '1px solid #ddd', borderRadius: 1, p: 1 }}>
+              <Box sx={{ maxHeight: '400px', overflow: 'auto', border: '1px solid', borderColor: 'divider', borderRadius: 1, p: 1 }}>
                 <List dense>
                   {orderedProducts.map((product, index) => (
                     <ListItem

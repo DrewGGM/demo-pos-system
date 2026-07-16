@@ -71,6 +71,7 @@ import {
   PriceChange as PriceChangeIcon,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
+import { useConfirm } from '../../contexts/ConfirmContext';
 import { wailsDianService } from '../../services/wailsDianService';
 import { wailsConfigService } from '../../services/wailsConfigService';
 import { wailsPrinterService, DetectedPrinter } from '../../services/wailsPrinterService';
@@ -193,6 +194,7 @@ const TabPanel: React.FC<TabPanelProps> = ({ children, value, index, ...other })
 };
 
 const Settings: React.FC = () => {
+  const confirm = useConfirm();
   const [selectedTab, setSelectedTab] = useState(0);
   const [moduleConfig, setModuleConfig] = useState<ModuleConfig[]>(loadModuleConfig);
   const [editMode, setEditMode] = useState(false);
@@ -899,7 +901,7 @@ const Settings: React.FC = () => {
   };
 
   const handleDeletePrinter = async (printerId: number) => {
-    if (!window.confirm('¿Estás seguro de eliminar esta impresora?')) {
+    if (!(await confirm({ message: '¿Estás seguro de eliminar esta impresora?', variant: 'danger' }))) {
       return;
     }
 
@@ -1104,7 +1106,7 @@ const Settings: React.FC = () => {
   };
 
   const handleResetTestResolution = async () => {
-    if (!confirm('¿Estás seguro de que quieres restablecer los valores de resolución de prueba y configurarla con DIAN? Esto sobrescribirá la configuración actual.')) {
+    if (!(await confirm({ message: '¿Estás seguro de que quieres restablecer los valores de resolución de prueba y configurarla con DIAN? Esto sobrescribirá la configuración actual.', variant: 'danger' }))) {
       return;
     }
     try {
@@ -1167,7 +1169,7 @@ const Settings: React.FC = () => {
   };
 
   const handleRegisterNewResolution = async () => {
-    if (!confirm('¿Estás seguro de que quieres registrar la resolución actual con DIAN? Esto obtendrá el consecutivo actual desde el servidor.')) {
+    if (!(await confirm({ message: '¿Estás seguro de que quieres registrar la resolución actual con DIAN? Esto obtendrá el consecutivo actual desde el servidor.' }))) {
       return;
     }
     try {
@@ -1429,7 +1431,7 @@ const Settings: React.FC = () => {
   const handleResetConfigurationSteps = async () => {
     try {
       // Confirm with user
-      if (!window.confirm('¿Estás seguro de reiniciar los pasos de configuración?\n\nEsto NO eliminará ningún dato, solo reiniciará el estado de los pasos para que puedas volver a ejecutarlos.')) {
+      if (!(await confirm({ message: '¿Estás seguro de reiniciar los pasos de configuración?\n\nEsto NO eliminará ningún dato, solo reiniciará el estado de los pasos para que puedas volver a ejecutarlos.' }))) {
         return;
       }
 
@@ -1487,7 +1489,7 @@ const Settings: React.FC = () => {
   };
 
   const handleDeactivateLicense = async () => {
-    if (!window.confirm('¿Desactivar la licencia de este dispositivo?')) return;
+    if (!(await confirm({ message: '¿Desactivar la licencia de este dispositivo?', variant: 'danger' }))) return;
     await wailsLicenseService.deactivateLicense();
     setLicenseInfo(null);
     setLicenseKey('');

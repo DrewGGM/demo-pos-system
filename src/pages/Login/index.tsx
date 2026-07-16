@@ -138,11 +138,29 @@ const Login: React.FC = () => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        position: 'relative',
+        overflow: 'hidden',
         padding: 2,
+        // Layered "mesh" background: a deep brand-derived base gradient with
+        // soft radial glows for depth. Derived from the active theme so it
+        // follows the chosen color preset.
+        background: (t) => `
+          radial-gradient(circle at 15% 20%, ${t.palette.primary.light}66 0%, transparent 45%),
+          radial-gradient(circle at 85% 15%, ${t.palette.secondary.main}55 0%, transparent 40%),
+          radial-gradient(circle at 75% 85%, ${t.palette.primary.main}55 0%, transparent 45%),
+          linear-gradient(150deg, ${t.palette.primary.dark} 0%, #1A1030 60%, #0E0A1A 100%)
+        `,
+        // Subtle vignette to focus the card.
+        '&::after': {
+          content: '""',
+          position: 'absolute',
+          inset: 0,
+          background: 'radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.35) 100%)',
+          pointerEvents: 'none',
+        },
       }}
     >
-      <Card sx={{ maxWidth: 450, width: '100%', boxShadow: 3 }}>
+      <Card sx={{ maxWidth: 450, width: '100%', boxShadow: '0 24px 70px rgba(0,0,0,0.45)', borderRadius: 3, position: 'relative', zIndex: 1 }}>
         <CardContent sx={{ p: 4 }}>
           <Box sx={{ textAlign: 'center', mb: 4 }}>
             {restaurantConfig?.logo ? (

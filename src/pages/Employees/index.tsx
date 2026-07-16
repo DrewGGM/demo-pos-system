@@ -40,8 +40,11 @@ import { wailsAuthService } from '../../services/wailsAuthService';
 import { Employee } from '../../types/models';
 import { toast } from 'react-toastify';
 import { format } from 'date-fns';
+import PageHeader from '../../components/PageHeader';
+import { useConfirm } from '../../contexts/ConfirmContext';
 
 const Employees: React.FC = () => {
+  const confirm = useConfirm();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -137,7 +140,7 @@ const Employees: React.FC = () => {
   };
 
   const handleDeleteEmployee = async (id: number) => {
-    if (window.confirm('¿Está seguro de eliminar este empleado?')) {
+    if (await confirm({ message: '¿Está seguro de eliminar este empleado?', variant: 'danger' })) {
       try {
         await wailsAuthService.deleteEmployee(id);
         toast.success('Empleado eliminado');
@@ -319,17 +322,22 @@ const Employees: React.FC = () => {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
-        <Typography variant="h4">Empleados</Typography>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => handleOpenEmployeeDialog()}
-        >
-          Nuevo Empleado
-        </Button>
-      </Box>
+      <PageHeader
+        title="Empleados"
+        subtitle="Personal, roles y accesos"
+        icon={<BadgeIcon />}
+        actions={
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => handleOpenEmployeeDialog()}
+          >
+            Nuevo Empleado
+          </Button>
+        }
+      />
 
+      {/* Stats */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid item xs={12} sm={6} md={2.4}>
           <Card>
@@ -342,7 +350,7 @@ const Employees: React.FC = () => {
           </Card>
         </Grid>
         <Grid item xs={12} sm={6} md={2.4}>
-          <Card sx={{ backgroundColor: '#ffebee' }}>
+          <Card sx={{ bgcolor: (t) => `${t.palette.error.main}14` }}>
             <CardContent sx={{ textAlign: 'center', py: 2 }}>
               <Typography variant="h4" color="error">
                 {roleStats.admin}
@@ -354,7 +362,7 @@ const Employees: React.FC = () => {
           </Card>
         </Grid>
         <Grid item xs={12} sm={6} md={2.4}>
-          <Card sx={{ backgroundColor: '#fff3e0' }}>
+          <Card sx={{ bgcolor: (t) => `${t.palette.warning.main}14` }}>
             <CardContent sx={{ textAlign: 'center', py: 2 }}>
               <Typography variant="h4" color="warning.main">
                 {roleStats.manager}
@@ -366,7 +374,7 @@ const Employees: React.FC = () => {
           </Card>
         </Grid>
         <Grid item xs={12} sm={6} md={2.4}>
-          <Card sx={{ backgroundColor: '#e3f2fd' }}>
+          <Card sx={{ bgcolor: (t) => `${t.palette.info.main}14` }}>
             <CardContent sx={{ textAlign: 'center', py: 2 }}>
               <Typography variant="h4" color="primary">
                 {roleStats.cashier}
@@ -378,7 +386,7 @@ const Employees: React.FC = () => {
           </Card>
         </Grid>
         <Grid item xs={12} sm={6} md={2.4}>
-          <Card sx={{ backgroundColor: '#e8f5e9' }}>
+          <Card sx={{ bgcolor: (t) => `${t.palette.success.main}14` }}>
             <CardContent sx={{ textAlign: 'center', py: 2 }}>
               <Typography variant="h4" color="success.main">
                 {roleStats.waiter + roleStats.kitchen}

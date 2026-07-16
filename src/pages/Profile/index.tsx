@@ -17,6 +17,7 @@ import {
 import { useAuth } from '../../hooks';
 import { wailsAuthService } from '../../services/wailsAuthService';
 import { toast } from 'react-toastify';
+import PageHeader from '../../components/PageHeader';
 
 const roleLabels: Record<string, string> = {
   admin: 'Administrador',
@@ -131,7 +132,11 @@ const Profile: React.FC = () => {
 
   return (
     <Box sx={{ p: 3, maxWidth: 900, mx: 'auto' }}>
-      <Typography variant="h4" sx={{ mb: 3 }}>Mi Perfil</Typography>
+      <PageHeader
+        title="Mi Perfil"
+        subtitle="Tu cuenta y preferencias"
+        icon={<PersonIcon />}
+      />
 
       {/* User Info Header */}
       <Paper sx={{ p: 3, mb: 3, display: 'flex', alignItems: 'center', gap: 3 }}>

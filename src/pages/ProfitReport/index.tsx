@@ -92,8 +92,16 @@ const ProfitReport: React.FC = () => {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4">Costos y Ganancias</Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2, mb: 3 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Box sx={{ width: 44, height: 44, borderRadius: 2.5, display: 'grid', placeItems: 'center', color: 'primary.main', bgcolor: (t) => `${t.palette.primary.main}18` }}>
+            <ProfitIcon />
+          </Box>
+          <Box>
+            <Typography variant="h4" sx={{ lineHeight: 1.1 }}>Costos y Ganancias</Typography>
+            <Typography variant="body2" color="text.secondary">Márgenes y rentabilidad por producto</Typography>
+          </Box>
+        </Box>
         <Box sx={{ display: 'flex', gap: 1 }}>
           <Button variant="outlined" startIcon={<DownloadIcon />} onClick={() => {
             if (!filtered.length) { toast.warning('No hay datos'); return; }

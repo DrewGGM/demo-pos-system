@@ -46,6 +46,8 @@ import { wailsIngredientService } from '../../services/wailsIngredientService';
 import { Ingredient, IngredientMovement } from '../../types/models';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../hooks';
+import { useConfirm } from '../../contexts/ConfirmContext';
+import PageHeader from '../../components/PageHeader';
 
 const UNIT_OPTIONS = [
   { value: 'unidades', label: 'Unidades' },
@@ -59,6 +61,7 @@ const UNIT_OPTIONS = [
 
 const Ingredients: React.FC = () => {
   const { user } = useAuth();
+  const confirm = useConfirm();
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [filteredIngredients, setFilteredIngredients] = useState<Ingredient[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -184,7 +187,7 @@ const Ingredients: React.FC = () => {
   };
 
   const handleDeleteIngredient = async (ingredient: Ingredient) => {
-    if (!window.confirm(`¿Está seguro de eliminar el ingrediente "${ingredient.name}"?`)) {
+    if (!(await confirm({ message: `¿Está seguro de eliminar el ingrediente "${ingredient.name}"?`, variant: 'danger' }))) {
       return;
     }
 
@@ -284,18 +287,20 @@ const Ingredients: React.FC = () => {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
-          Gestión de Ingredientes
-        </Typography>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => handleOpenIngredientDialog()}
-        >
-          Nuevo Ingrediente
-        </Button>
-      </Box>
+      <PageHeader
+        title="Ingredientes"
+        subtitle="Insumos, stock y recetas de productos"
+        icon={<InventoryIcon />}
+        actions={
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => handleOpenIngredientDialog()}
+          >
+            Nuevo Ingrediente
+          </Button>
+        }
+      />
 
       {lowStockIngredients.length > 0 && (
         <Alert severity="warning" sx={{ mb: 3 }}>

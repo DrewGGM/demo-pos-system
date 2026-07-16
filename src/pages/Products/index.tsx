@@ -63,6 +63,8 @@ import {
 } from '../../store/slices/productsSlice';
 import { Product, Category, Ingredient, ProductIngredient } from '../../types/models';
 import { toast } from 'react-toastify';
+import { useConfirm } from '../../contexts/ConfirmContext';
+import PageHeader from '../../components/PageHeader';
 import { compressImageToBase64, getBase64Size } from '../../utils/imageUtils';
 import { useAuth } from '../../hooks';
 import {
@@ -80,6 +82,7 @@ import {
 
 const Products: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
+  const confirm = useConfirm();
   const { user } = useAuth();
   const {
     products,
@@ -335,7 +338,7 @@ const Products: React.FC = () => {
   };
 
   const handleDeleteProduct = async (id: number) => {
-    if (window.confirm('¿Está seguro de eliminar este producto?')) {
+    if (await confirm({ message: '¿Está seguro de eliminar este producto?', variant: 'danger' })) {
       try {
         await dispatch(deleteProduct(id)).unwrap();
         toast.success('Producto eliminado');
@@ -411,7 +414,7 @@ const Products: React.FC = () => {
   };
 
   const handleDeleteCategory = async (id: number) => {
-    if (window.confirm('¿Está seguro de eliminar esta categoría?')) {
+    if (await confirm({ message: '¿Está seguro de eliminar esta categoría?', variant: 'danger' })) {
       try {
         await dispatch(deleteCategory(id)).unwrap();
         toast.success('Categoría eliminada');
@@ -492,7 +495,7 @@ const Products: React.FC = () => {
   };
 
   const handleDeleteGroup = async (id: number) => {
-    if (window.confirm('¿Está seguro de eliminar este grupo?')) {
+    if (await confirm({ message: '¿Está seguro de eliminar este grupo?', variant: 'danger' })) {
       try {
         await DeleteModifierGroup(id);
         toast.success('Grupo eliminado');
@@ -553,7 +556,7 @@ const Products: React.FC = () => {
   };
 
   const handleDeleteModifier = async (id: number) => {
-    if (window.confirm('¿Está seguro de eliminar este modificador?')) {
+    if (await confirm({ message: '¿Está seguro de eliminar este modificador?', variant: 'danger' })) {
       try {
         await DeleteModifier(id);
         toast.success('Modificador eliminado');
@@ -598,7 +601,7 @@ const Products: React.FC = () => {
                 alt={product.name}
                 sx={{
                   objectFit: 'cover',
-                  backgroundColor: '#f5f5f5',
+                  backgroundColor: 'action.hover',
                 }}
               />
             ) : (
@@ -608,8 +611,8 @@ const Products: React.FC = () => {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  backgroundColor: '#f5f5f5',
-                  color: '#9e9e9e',
+                  backgroundColor: 'action.hover',
+                  color: 'text.disabled',
                 }}
               >
                 <Typography variant="body2">Sin imagen</Typography>
@@ -702,9 +705,11 @@ const Products: React.FC = () => {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
-        <Typography variant="h4">Productos</Typography>
-        <Box sx={{ display: 'flex', gap: 2 }}>
+      <PageHeader
+        title="Productos"
+        subtitle="Catálogo, categorías y modificadores"
+        icon={<InventoryIcon />}
+        actions={<>
           <Button
             variant="outlined"
             startIcon={<RefreshIcon />}
@@ -792,11 +797,11 @@ const Products: React.FC = () => {
           >
             Nuevo Producto
           </Button>
-        </Box>
-      </Box>
+        </>}
+      />
 
       {lowStockProducts.length > 0 && (
-        <Paper sx={{ p: 2, mb: 2, backgroundColor: '#fff3e0' }}>
+        <Paper sx={{ p: 2, mb: 2, bgcolor: (t) => `${t.palette.warning.main}14` }}>
           <Typography variant="subtitle1" color="warning.main" gutterBottom>
             ⚠️ Productos con stock bajo ({lowStockProducts.length})
           </Typography>
@@ -1026,7 +1031,7 @@ const Products: React.FC = () => {
                       alt="Preview"
                       sx={{
                         borderRadius: 2,
-                        border: '2px solid #e0e0e0',
+                        border: '2px dashed', borderColor: 'divider',
                         maxHeight: 300,
                         objectFit: 'contain',
                       }}

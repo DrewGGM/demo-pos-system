@@ -32,6 +32,7 @@ import {
   Clear as ClearIcon,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
+import { useConfirm } from '../../contexts/ConfirmContext';
 
 // PriceList row shape — mirrors the Go model field-for-field. We keep this
 // inline (instead of importing from wailsjs/go/models) to avoid coupling the
@@ -63,6 +64,7 @@ interface ProductPriceRow {
 const svc = () => (window as any)?.go?.services?.PriceListService;
 
 const PriceListsSettings: React.FC = () => {
+  const confirm = useConfirm();
   const [lists, setLists] = useState<PriceList[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<PriceList | null>(null);
@@ -231,7 +233,7 @@ const PriceListsSettings: React.FC = () => {
       toast.error('Promueve otra lista como default antes de eliminar esta');
       return;
     }
-    if (!window.confirm(`¿Eliminar la lista "${list.name}"? Los precios personalizados de productos en esta lista también se eliminarán.`)) {
+    if (!(await confirm({ message: `¿Eliminar la lista "${list.name}"? Los precios personalizados de productos en esta lista también se eliminarán.`, variant: 'danger' }))) {
       return;
     }
     try {

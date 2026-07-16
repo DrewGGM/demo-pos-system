@@ -15,6 +15,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { WebSocketProvider } from './contexts/WebSocketContext';
 import { DIANModeProvider } from './contexts/DIANModeContext';
 import { NotificationProvider } from './contexts/NotificationContext';
+import { ConfirmProvider } from './contexts/ConfirmContext';
 import { initDemoData } from './services/mockBackend';
 import { installDemoPriceListService } from './services/demoPriceListService';
 import './index.css';
@@ -36,7 +37,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
               <NotificationProvider>
                 <WebSocketProvider>
                   <DIANModeProvider>
+                    <ConfirmProvider>
                     <App />
+                    </ConfirmProvider>
                     <ToastContainer
                       position="top-right"
                       autoClose={5000}

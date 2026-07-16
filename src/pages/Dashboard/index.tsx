@@ -18,6 +18,7 @@ import {
   LinearProgress,
   Alert,
   Divider,
+  Skeleton,
 } from '@mui/material';
 import {
   TrendingUp as TrendingUpIcon,
@@ -44,6 +45,8 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth, useDIANMode } from '../../hooks';
+import { usePermissions } from '../../hooks';
+import { useConfirm } from '../../contexts/ConfirmContext';
 import { wailsDashboardService } from '../../services/wailsDashboardService';
 import { wailsWebSocketService, WebSocketStatus } from '../../services/wailsWebSocketService';
 import { wailsGoogleSheetsService } from '../../services/wailsGoogleSheetsService';
@@ -91,6 +94,19 @@ const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const { user, cashRegisterId } = useAuth();
   const { isDIANMode } = useDIANMode();
+  const { can } = usePermissions();
+  const confirm = useConfirm();
+  // Role-aware gating: revenue/financial figures (daily sales, growth, average
+  // ticket, the sales chart) are only shown to roles that can view reports.
+  // Cashiers/waiters get an operations-focused board instead of the money.
+  const canViewFinancials = can('reports.view');
+  const ROLE_LABELS: Record<string, string> = {
+    admin: 'Administrador',
+    manager: 'Gerente',
+    cashier: 'Cajero',
+    waiter: 'Mesero',
+    kitchen: 'Cocina',
+  };
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
@@ -104,7 +120,12 @@ const Dashboard: React.FC = () => {
   }, [isDIANMode]); // Reload when DIAN mode changes
 
   const handleRestartServer = async () => {
-    if (confirm('¿Estás seguro de que quieres reiniciar el servidor? Todas las conexiones de apps móviles se desconectarán temporalmente.')) {
+    if (await confirm({
+      title: 'Reiniciar servidor',
+      message: '¿Seguro que quieres reiniciar el servidor? Todas las conexiones de apps móviles se desconectarán temporalmente.',
+      confirmText: 'Reiniciar',
+      variant: 'danger',
+    })) {
       try {
         // Quit the application - user will need to manually restart it
         const w = (window as any);
@@ -112,7 +133,7 @@ const Dashboard: React.FC = () => {
           w.runtime.Quit();
         }
       } catch (error) {
-        alert('Error al reiniciar el servidor');
+        showError('Error al reiniciar el servidor');
       }
     }
   };
@@ -164,33 +185,60 @@ const Dashboard: React.FC = () => {
   };
 
   const StatCard = ({ title, value, icon, color, trend, action }: any) => (
-    <Card sx={{ height: '100%' }}>
+    <Card sx={{ height: '100%', transition: 'box-shadow .15s ease, border-color .15s ease', '&:hover': { boxShadow: (t: any) => `0 8px 24px ${t.palette[color]?.main || t.palette.primary.main}22`, borderColor: `${color}.main` } }}>
       <CardContent>
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-          <Avatar sx={{ bgcolor: `${color}.light`, mr: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 1.5 }}>
+          <Box
+            sx={{
+              width: 48,
+              height: 48,
+              borderRadius: 2.5,
+              mr: 2,
+              display: 'grid',
+              placeItems: 'center',
+              color: `${color}.main`,
+              bgcolor: (t: any) => `${t.palette[color]?.main || t.palette.primary.main}18`,
+            }}
+          >
             {icon}
-          </Avatar>
-          <Box sx={{ flex: 1 }}>
-            <Typography color="textSecondary" gutterBottom variant="body2">
+          </Box>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography color="text.secondary" variant="overline" sx={{ fontWeight: 700, letterSpacing: '0.08em', lineHeight: 1.6, display: 'block' }}>
               {title}
             </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
+            <Typography variant="h4" sx={{ fontWeight: 800, letterSpacing: '-0.02em' }}>
               {value}
             </Typography>
           </Box>
         </Box>
         {trend && (
-          <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
-            {trend > 0 ? (
-              <TrendingUpIcon color="success" sx={{ mr: 0.5 }} />
-            ) : (
-              <TrendingDownIcon color="error" sx={{ mr: 0.5 }} />
-            )}
-            <Typography
-              variant="body2"
-              color={trend > 0 ? 'success.main' : 'error.main'}
+          <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
+            <Box
+              sx={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 0.25,
+                px: 0.75,
+                py: 0.25,
+                borderRadius: 1.5,
+                bgcolor: (t: any) => trend > 0 ? `${t.palette.success.main}18` : `${t.palette.error.main}18`,
+              }}
             >
-              {Math.abs(trend)}% vs ayer
+              {trend > 0 ? (
+                <TrendingUpIcon color="success" sx={{ fontSize: 16 }} />
+              ) : (
+                <TrendingDownIcon color="error" sx={{ fontSize: 16 }} />
+              )}
+              <Typography
+                variant="caption"
+                sx={{ fontWeight: 700 }}
+                color={trend > 0 ? 'success.main' : 'error.main'}
+              >
+                {Math.abs(trend)}%
+              </Typography>
+            </Box>
+            <Typography variant="caption" color="text.secondary" sx={{ ml: 0.75 }}>
+              vs ayer
             </Typography>
           </Box>
         )}
@@ -207,8 +255,31 @@ const Dashboard: React.FC = () => {
 
   if (loading) {
     return (
-      <Box sx={{ width: '100%', mt: 2 }}>
-        <LinearProgress />
+      <Box sx={{ p: 3 }}>
+        {/* Skeleton that mirrors the real layout so the page doesn't jump when
+            data arrives (reserves space for header, stat cards, chart). */}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
+          <Box>
+            <Skeleton variant="text" width={220} height={40} />
+            <Skeleton variant="text" width={160} height={20} />
+          </Box>
+          <Skeleton variant="rounded" width={120} height={40} />
+        </Box>
+        <Grid container spacing={3} sx={{ mb: 3 }}>
+          {[0, 1, 2, 3].map((i) => (
+            <Grid item xs={12} sm={6} md={3} key={i}>
+              <Skeleton variant="rounded" height={130} />
+            </Grid>
+          ))}
+        </Grid>
+        <Grid container spacing={3}>
+          <Grid item xs={12} md={8}>
+            <Skeleton variant="rounded" height={400} />
+          </Grid>
+          <Grid item xs={12} md={4}>
+            <Skeleton variant="rounded" height={400} />
+          </Grid>
+        </Grid>
       </Box>
     );
   }
@@ -217,11 +288,20 @@ const Dashboard: React.FC = () => {
     <Box sx={{ p: 3 }}>
       <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Box>
-          <Typography variant="h4" gutterBottom>
-            Dashboard
-          </Typography>
-          <Typography variant="body2" color="textSecondary">
-            Bienvenido, {user?.name} • {format(new Date(), 'EEEE, d MMMM yyyy')}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, flexWrap: 'wrap' }}>
+            <Typography variant="h4">
+              Hola, {user?.name?.split(' ')[0] || user?.name}
+            </Typography>
+            {user?.role && (
+              <Chip
+                size="small"
+                label={ROLE_LABELS[user.role] || user.role}
+                sx={{ fontWeight: 700, bgcolor: (t) => `${t.palette.primary.main}18`, color: 'primary.main' }}
+              />
+            )}
+          </Box>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, textTransform: 'capitalize' }}>
+            {format(new Date(), 'EEEE, d MMMM yyyy')}
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', gap: 2 }}>
@@ -242,26 +322,43 @@ const Dashboard: React.FC = () => {
       {!cashRegisterId && (
         <Alert severity="warning" sx={{ mb: 2 }}>
           No hay caja abierta. Por favor abra la caja para realizar ventas.
-          <Button size="small" onClick={() => navigate('/cash-register')} sx={{ ml: 2 }}>
-            Abrir Caja
-          </Button>
+          {can('pos.cash_register.open') && (
+            <Button size="small" onClick={() => navigate('/cash-register')} sx={{ ml: 2 }}>
+              Abrir Caja
+            </Button>
+          )}
         </Alert>
       )}
 
       <Grid container spacing={3} sx={{ mb: 3 }}>
-        <Grid item xs={12} sm={6} md={3}>
-          <StatCard
-            title="Ventas de Hoy"
-            value={`$${(stats?.today_sales ?? 0).toLocaleString('es-CO')}`}
-            icon={<MoneyIcon />}
-            color="primary"
-            trend={stats?.sales_growth}
-            action={{
-              label: 'Ver Ventas',
-              onClick: () => navigate('/sales'),
-            }}
-          />
-        </Grid>
+        {canViewFinancials ? (
+          <Grid item xs={12} sm={6} md={3}>
+            <StatCard
+              title="Ventas de Hoy"
+              value={`$${(stats?.today_sales ?? 0).toLocaleString('es-CO')}`}
+              icon={<MoneyIcon />}
+              color="primary"
+              trend={stats?.sales_growth}
+              action={{
+                label: 'Ver Ventas',
+                onClick: () => navigate('/sales'),
+              }}
+            />
+          </Grid>
+        ) : (
+          <Grid item xs={12} sm={6} md={3}>
+            <StatCard
+              title="Ventas de Hoy"
+              value={stats?.today_sales_count ?? 0}
+              icon={<ReceiptIcon />}
+              color="primary"
+              action={{
+                label: 'Ir al POS',
+                onClick: () => navigate('/pos'),
+              }}
+            />
+          </Grid>
+        )}
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Órdenes de Hoy"
@@ -301,30 +398,62 @@ const Dashboard: React.FC = () => {
       </Grid>
 
       <Grid container spacing={3}>
+        {/* Sales Chart (financial) OR Top-selling panel (operational roles) */}
         <Grid item xs={12} md={8}>
-          <Paper sx={{ p: 2, height: 400 }}>
-            <Typography variant="h6" gutterBottom>
-              Ventas Últimos 7 Días
-            </Typography>
-            <ResponsiveContainer width="100%" height={320}>
-              <AreaChart data={hourlySales}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis />
-                <Tooltip
-                  formatter={(value: any) => `$${value.toLocaleString('es-CO')}`}
-                  labelFormatter={(label) => label}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="sales"
-                  stroke="#3B82F6"
-                  fill="#3B82F6"
-                  fillOpacity={0.3}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </Paper>
+          {canViewFinancials ? (
+            <Paper sx={{ p: 2, height: 400 }}>
+              <Typography variant="h6" gutterBottom>
+                Ventas Últimos 7 Días
+              </Typography>
+              <ResponsiveContainer width="100%" height={320}>
+                <AreaChart data={hourlySales}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,128,0.2)" />
+                  <XAxis dataKey="date" stroke="currentColor" style={{ fontSize: 12, opacity: 0.7 }} />
+                  <YAxis stroke="currentColor" style={{ fontSize: 12, opacity: 0.7 }} />
+                  <Tooltip
+                    formatter={(value: any) => `$${value.toLocaleString('es-CO')}`}
+                    labelFormatter={(label) => label}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="sales"
+                    stroke="#542EB1"
+                    fill="#542EB1"
+                    fillOpacity={0.18}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </Paper>
+          ) : (
+            <Paper sx={{ p: 2, height: 400, display: 'flex', flexDirection: 'column' }}>
+              <Typography variant="h6" gutterBottom>
+                Más vendidos hoy
+              </Typography>
+              {stats?.top_selling_items && stats.top_selling_items.length > 0 ? (
+                <List sx={{ flex: 1, overflow: 'auto' }}>
+                  {stats.top_selling_items.slice(0, 8).map((item, i) => (
+                    <ListItem key={item.product_id} disableGutters sx={{ py: 0.75 }}>
+                      <ListItemAvatar>
+                        <Avatar sx={{ bgcolor: (t) => `${t.palette.primary.main}18`, color: 'primary.main', fontWeight: 700 }}>
+                          {i + 1}
+                        </Avatar>
+                      </ListItemAvatar>
+                      <ListItemText
+                        primary={item.product_name}
+                        secondary={`${item.quantity} vendidos`}
+                        primaryTypographyProps={{ fontWeight: 600 }}
+                      />
+                    </ListItem>
+                  ))}
+                </List>
+              ) : (
+                <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'text.secondary', gap: 1 }}>
+                  <CartIcon sx={{ fontSize: 48, opacity: 0.4 }} />
+                  <Typography variant="body2">Aún no hay ventas hoy</Typography>
+                </Box>
+              )}
+            </Paper>
+          )}
         </Grid>
 
         <Grid item xs={12} md={4}>
@@ -377,38 +506,57 @@ const Dashboard: React.FC = () => {
                   Reportes
                 </Button>
               </Grid>
-              <Grid item xs={12}>
-                <Button
-                  fullWidth
-                  variant="outlined"
-                  color="success"
-                  startIcon={<CloudSyncIcon />}
-                  onClick={handleSyncGoogleSheets}
-                  disabled={syncing}
-                  sx={{ py: 2 }}
-                >
-                  {syncing ? 'Enviando...' : 'Enviar Reporte a Google Sheets'}
-                </Button>
-              </Grid>
+              {can('reports.export') && (
+                <Grid item xs={12}>
+                  <Button
+                    fullWidth
+                    variant="outlined"
+                    color="success"
+                    startIcon={<CloudSyncIcon />}
+                    onClick={handleSyncGoogleSheets}
+                    disabled={syncing}
+                    sx={{ py: 2 }}
+                  >
+                    {syncing ? 'Enviando...' : 'Enviar Reporte a Google Sheets'}
+                  </Button>
+                </Grid>
+              )}
             </Grid>
-            
+
+            {canViewFinancials && (
+              <>
+                <Divider sx={{ my: 2 }} />
+                <Typography variant="subtitle2" gutterBottom>
+                  Ticket Promedio
+                </Typography>
+                <Typography variant="h4" color="primary" sx={{ fontWeight: 800 }}>
+                  ${(stats?.average_ticket ?? 0).toLocaleString('es-CO')}
+                </Typography>
+              </>
+            )}
+
             <Divider sx={{ my: 2 }} />
 
-            <Typography variant="subtitle2" gutterBottom>
-              Ticket Promedio
-            </Typography>
-            <Typography variant="h4" color="primary">
-              ${(stats?.average_ticket ?? 0).toLocaleString('es-CO')}
-            </Typography>
-
-            <Divider sx={{ my: 2 }} />
-
-            <Typography variant="subtitle2" gutterBottom>
-              Productos con Bajo Stock
-            </Typography>
-            <Typography variant="h4" color="warning.main">
-              {stats?.low_stock_products ?? 0}
-            </Typography>
+            <Box
+              sx={{
+                display: 'flex', alignItems: 'center', gap: 1.5, p: 1.5, borderRadius: 2,
+                bgcolor: (t) => (stats?.low_stock_products ?? 0) > 0 ? `${t.palette.warning.main}1F` : t.palette.action.hover,
+                cursor: can('inventory.adjust') ? 'pointer' : 'default',
+              }}
+              onClick={() => can('inventory.adjust') && navigate('/inventory')}
+            >
+              <Avatar sx={{ bgcolor: (stats?.low_stock_products ?? 0) > 0 ? 'warning.main' : 'action.disabledBackground', width: 40, height: 40 }}>
+                <WarningIcon />
+              </Avatar>
+              <Box>
+                <Typography variant="h5" sx={{ fontWeight: 800, lineHeight: 1.1 }} color={(stats?.low_stock_products ?? 0) > 0 ? 'warning.main' : 'text.primary'}>
+                  {stats?.low_stock_products ?? 0}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Productos con bajo stock
+                </Typography>
+              </Box>
+            </Box>
           </Paper>
         </Grid>
 
@@ -489,16 +637,19 @@ const Dashboard: React.FC = () => {
 
             <Divider sx={{ my: 2 }} />
 
-            <Button
-              fullWidth
-              variant="outlined"
-              color="warning"
-              startIcon={<ResetIcon />}
-              onClick={handleRestartServer}
-              sx={{ mt: 1 }}
-            >
-              Reiniciar Servidor
-            </Button>
+            {/* Restart Server Button */}
+            {can('app.power') && (
+              <Button
+                fullWidth
+                variant="outlined"
+                color="warning"
+                startIcon={<ResetIcon />}
+                onClick={handleRestartServer}
+                sx={{ mt: 1 }}
+              >
+                Reiniciar Servidor
+              </Button>
+            )}
           </Paper>
         </Grid>
 

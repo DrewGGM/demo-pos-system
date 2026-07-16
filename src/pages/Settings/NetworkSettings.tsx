@@ -353,7 +353,21 @@ const NetworkSettings: React.FC = () => {
 
       <Tabs value={activeTab} onChange={(_, v) => setActiveTab(v)} sx={{ mb: 2 }}>
         <Tab icon={<RouterIcon />} label="Puertos" />
-        <Tab icon={<TunnelIcon />} label="Tunnel" />
+        <Tab
+          icon={<TunnelIcon />}
+          label={
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+              <span>Tunnel</span>
+              <Chip
+                label="En desarrollo"
+                size="small"
+                color="warning"
+                variant="outlined"
+                sx={{ height: 18, fontSize: '0.6rem', fontWeight: 700, '& .MuiChip-label': { px: 0.75 } }}
+              />
+            </Box>
+          }
+        />
       </Tabs>
 
       {/* Ports Configuration Tab */}
@@ -658,6 +672,10 @@ const NetworkSettings: React.FC = () => {
 
       {/* Tunnel Configuration Tab */}
       <TabPanel value={activeTab} index={1}>
+        <Alert severity="warning" sx={{ mb: 3 }}>
+          <strong>Función en desarrollo.</strong> El túnel de Cloudflare está en fase de pruebas y
+          puede no estar disponible o cambiar. En la demo esta sección es solo ilustrativa.
+        </Alert>
         <Grid container spacing={3}>
           {/* Status Card */}
           <Grid item xs={12}>

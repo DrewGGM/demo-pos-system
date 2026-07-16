@@ -41,6 +41,8 @@ import { Customer } from '../../types/models';
 import { toast } from 'react-toastify';
 import { format } from 'date-fns';
 import { useDIANMode } from '../../hooks';
+import { useConfirm } from '../../contexts/ConfirmContext';
+import PageHeader from '../../components/PageHeader';
 
 // Customer statistics (loaded from optimized backend endpoint)
 interface CustomerStatsData {
@@ -52,6 +54,7 @@ interface CustomerStatsData {
 
 const Customers: React.FC = () => {
   const { isDIANMode } = useDIANMode();
+  const confirm = useConfirm();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [stats, setStats] = useState<CustomerStatsData>({
     total_customers: 0,
@@ -188,7 +191,7 @@ const Customers: React.FC = () => {
   };
 
   const handleDeleteCustomer = async (id: number) => {
-    if (window.confirm('¿Está seguro de eliminar este cliente?')) {
+    if (await confirm({ message: '¿Está seguro de eliminar este cliente?', variant: 'danger' })) {
       try {
         await wailsSalesService.deleteCustomer(id);
         toast.success('Cliente eliminado');
@@ -324,16 +327,20 @@ const Customers: React.FC = () => {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
-        <Typography variant="h4">Clientes</Typography>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => handleOpenCustomerDialog()}
-        >
-          Nuevo Cliente
-        </Button>
-      </Box>
+      <PageHeader
+        title="Clientes"
+        subtitle="Directorio de clientes y su historial de compras"
+        icon={<PersonIcon />}
+        actions={
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => handleOpenCustomerDialog()}
+          >
+            Nuevo Cliente
+          </Button>
+        }
+      />
 
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid item xs={12} sm={6} md={3}>

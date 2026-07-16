@@ -70,6 +70,7 @@ import {
 import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { toast } from 'react-toastify';
+import { useConfirm } from '../../contexts/ConfirmContext';
 
 // ---------------------------------------------------------------------------
 // Types mirroring Go models / service return types
@@ -255,6 +256,7 @@ const Accounting: React.FC = () => {
 // ===========================================================================
 
 const ChartOfAccounts: React.FC = () => {
+  const confirm = useConfirm();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
@@ -304,7 +306,7 @@ const ChartOfAccounts: React.FC = () => {
 
   const handleDelete = async (acc: Account) => {
     if (acc.is_system) return;
-    if (!window.confirm(`Eliminar cuenta ${acc.code} - ${acc.name}?`)) return;
+    if (!(await confirm({ message: `Eliminar cuenta ${acc.code} - ${acc.name}?`, variant: 'danger' }))) return;
     try {
       const { DeleteAccount } = await svc();
       await DeleteAccount(acc.id);
@@ -463,6 +465,7 @@ const ChartOfAccounts: React.FC = () => {
 const emptyLine = (): CreateEntryLine => ({ account_id: 0, debit: 0, credit: 0, notes: '' });
 
 const JournalEntries: React.FC = () => {
+  const confirm = useConfirm();
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
@@ -556,7 +559,7 @@ const JournalEntries: React.FC = () => {
   };
 
   const handleVoid = async (entry: JournalEntry) => {
-    if (!window.confirm(`Anular asiento #${entry.entry_number}?`)) return;
+    if (!(await confirm({ message: `Anular asiento #${entry.entry_number}?`, variant: 'danger' }))) return;
     try {
       const { VoidEntry } = await svc();
       await VoidEntry(entry.id, null as any);
@@ -1031,11 +1034,12 @@ const GeneralLedger: React.FC = () => {
 // ===========================================================================
 
 const FinancialStatements: React.FC = () => {
+  const confirm = useConfirm();
   const [subTab, setSubTab] = useState(0);
   const currentYear = new Date().getFullYear();
 
   const handleCloseYear = async () => {
-    if (!window.confirm(`Esta seguro de realizar el Cierre Anual ${currentYear}? Esta operacion no se puede deshacer.`)) return;
+    if (!(await confirm({ message: `Esta seguro de realizar el Cierre Anual ${currentYear}? Esta operacion no se puede deshacer.`, variant: 'danger' }))) return;
     try {
       const s = (window as any).go?.services?.AccountingService;
       const result = await s.CloseYear(currentYear);
@@ -1643,6 +1647,7 @@ const QuickEntry: React.FC = () => {
 // ===========================================================================
 
 const Providers: React.FC = () => {
+  const confirm = useConfirm();
   const [providers, setProviders] = useState<Provider[]>([]);
   const [loading, setLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -1711,7 +1716,7 @@ const Providers: React.FC = () => {
   };
 
   const handleDelete = async (p: Provider) => {
-    if (!window.confirm(`Eliminar proveedor ${p.name}?`)) return;
+    if (!(await confirm({ message: `Eliminar proveedor ${p.name}?`, variant: 'danger' }))) return;
     try {
       const s = (window as any).go?.services?.AccountingService;
       await s.DeleteProvider(p.id);

@@ -32,6 +32,7 @@ import {
   ArrowForward as GoIcon,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
+import { useConfirm } from '../../contexts/ConfirmContext';
 import { GetPendingOrders, DeleteOrder, UpdateTableStatus } from '../../../wailsjs/go/services/OrderService';
 import { ResendElectronicInvoice } from '../../../wailsjs/go/services/SalesService';
 
@@ -69,6 +70,7 @@ const PreCloseChecksDialog: React.FC<PreCloseChecksDialogProps> = ({
   sessionStartDate,
 }) => {
   const navigate = useNavigate();
+  const confirm = useConfirm();
   const [loading, setLoading] = useState(false);
   const [pendingOrders, setPendingOrders] = useState<PendingOrderRow[]>([]);
   const [failedInvoices, setFailedInvoices] = useState<FailedInvoiceRow[]>([]);
@@ -129,7 +131,7 @@ const PreCloseChecksDialog: React.FC<PreCloseChecksDialogProps> = ({
   };
 
   const handleCancelOrder = async (order: PendingOrderRow) => {
-    if (!window.confirm('¿Eliminar esta orden? Se borrará y la mesa quedará disponible.')) return;
+    if (!(await confirm({ message: '¿Eliminar esta orden? Se borrará y la mesa quedará disponible.', variant: 'danger' }))) return;
     setBusyOrderId(order.id);
     try {
       // Match the POS behavior: delete the order outright (no soft-cancel) and
@@ -166,7 +168,7 @@ const PreCloseChecksDialog: React.FC<PreCloseChecksDialogProps> = ({
 
   const handleRetryAll = async () => {
     if (failedInvoices.length === 0) return;
-    if (!window.confirm(`¿Reenviar ${failedInvoices.length} facturas fallidas? Se reintentará una por una.`)) return;
+    if (!(await confirm({ message: `¿Reenviar ${failedInvoices.length} facturas fallidas? Se reintentará una por una.` }))) return;
     setRetryAllInProgress(true);
     let ok = 0;
     let fail = 0;

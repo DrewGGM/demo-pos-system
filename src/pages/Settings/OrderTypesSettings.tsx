@@ -45,11 +45,13 @@ import {
 } from '../../../wailsjs/go/services/OrderTypeService';
 import { GetPaymentMethods } from '../../../wailsjs/go/services/SalesService';
 import { models } from '../../../wailsjs/go/models';
+import { useConfirm } from '../../contexts/ConfirmContext';
 
 type OrderType = models.OrderType;
 type PaymentMethod = models.PaymentMethod;
 
 const OrderTypesSettings: React.FC = () => {
+  const confirm = useConfirm();
   const [orderTypes, setOrderTypes] = useState<OrderType[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [openDialog, setOpenDialog] = useState(false);
@@ -190,7 +192,7 @@ const OrderTypesSettings: React.FC = () => {
   };
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm('¿Está seguro de eliminar este tipo de pedido?')) {
+    if (!(await confirm({ message: '¿Está seguro de eliminar este tipo de pedido?', variant: 'danger' }))) {
       return;
     }
 
@@ -282,7 +284,7 @@ const OrderTypesSettings: React.FC = () => {
                         height: 40,
                         borderRadius: 1,
                         bgcolor: type.display_color,
-                        border: '1px solid #ddd',
+                        border: '1px solid', borderColor: 'divider',
                       }}
                     />
                   </TableCell>

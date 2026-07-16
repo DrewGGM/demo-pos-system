@@ -11,6 +11,7 @@ import {
 } from '@mui/icons-material';
 import { useThemeSettings, THEME_PRESETS } from '../../contexts/ThemeContext';
 import { toast } from 'react-toastify';
+import { useConfirm } from '../../contexts/ConfirmContext';
 
 const FONT_OPTIONS = [
   { value: '"Inter", "Roboto", sans-serif', label: 'Inter (Moderno)' },
@@ -23,9 +24,10 @@ const FONT_OPTIONS = [
 
 const ThemeSettings: React.FC = () => {
   const { settings, updateSettings, resetTheme, presets } = useThemeSettings();
+  const confirm = useConfirm();
 
-  const handleReset = () => {
-    if (window.confirm('¿Restaurar el tema por defecto?')) {
+  const handleReset = async () => {
+    if (await confirm({ message: '¿Restaurar el tema por defecto?', variant: 'danger' })) {
       resetTheme();
       toast.success('Tema restaurado');
     }

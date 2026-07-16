@@ -78,21 +78,25 @@ const OrderList: React.FC<OrderListProps> = ({
                 <ButtonGroup
                   size="small"
                   sx={{
-                    height: 24,
-                    '& .MuiButton-root': { minWidth: 24, px: 0.25, py: 0, height: 24, lineHeight: 1 },
+                    height: 34,
+                    borderRadius: 999,
+                    overflow: 'hidden',
+                    '& .MuiButton-root': { minWidth: 34, px: 0.25, py: 0, height: 34, lineHeight: 1, border: 'none' },
+                    '& .MuiButtonGroup-grouped:not(:last-of-type)': { borderRight: 'none' },
+                    bgcolor: 'action.hover',
                   }}
                 >
                   <Button
                     onClick={() => handleQuantityChange(item, -1)}
                     disabled={item.quantity <= 1}
                   >
-                    <RemoveIcon sx={{ fontSize: 14 }} />
+                    <RemoveIcon sx={{ fontSize: 18 }} />
                   </Button>
-                  <Button disabled sx={{ minWidth: '28px !important', fontSize: '0.75rem' }}>
+                  <Button disabled sx={{ minWidth: '34px !important', fontSize: '0.9rem', fontWeight: 700, color: 'text.primary !important' }}>
                     {item.quantity}
                   </Button>
                   <Button onClick={() => handleQuantityChange(item, 1)}>
-                    <AddIcon sx={{ fontSize: 14 }} />
+                    <AddIcon sx={{ fontSize: 18 }} />
                   </Button>
                 </ButtonGroup>
               )}
@@ -106,27 +110,27 @@ const OrderList: React.FC<OrderListProps> = ({
               </Typography>
 
               {editable && (
-                <Box sx={{ display: 'flex', flexShrink: 0 }}>
+                <Box sx={{ display: 'flex', flexShrink: 0, gap: 0.25 }}>
                   {onEditNotes && (
                     <IconButton
                       size="small"
                       onClick={() => onEditNotes(item)}
-                      sx={{ p: 0.5 }}
+                      sx={{ p: 0.75 }}
                       color={item.notes ? 'primary' : 'default'}
                       title="Agregar nota"
                     >
-                      <NoteIcon sx={{ fontSize: 18 }} />
+                      <NoteIcon sx={{ fontSize: 19 }} />
                     </IconButton>
                   )}
                   {onEditItem && item.product?.modifiers && item.product.modifiers.length > 0 && (
                     <IconButton
                       size="small"
                       onClick={() => onEditItem(item)}
-                      sx={{ p: 0.5 }}
+                      sx={{ p: 0.75 }}
                       color={item.modifiers && item.modifiers.length > 0 ? 'primary' : 'default'}
                       title="Editar modificadores"
                     >
-                      <EditIcon sx={{ fontSize: 18 }} />
+                      <EditIcon sx={{ fontSize: 19 }} />
                     </IconButton>
                   )}
                   <IconButton
@@ -136,10 +140,10 @@ const OrderList: React.FC<OrderListProps> = ({
                       const itemId = item.id ?? Date.now();
                       onRemoveItem(itemId);
                     }}
-                    sx={{ p: 0.5 }}
+                    sx={{ p: 0.75 }}
                     title="Eliminar"
                   >
-                    <DeleteIcon sx={{ fontSize: 18 }} />
+                    <DeleteIcon sx={{ fontSize: 19 }} />
                   </IconButton>
                 </Box>
               )}

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import lyrooLogo from '../assets/images/lyroo-logo.svg';
+import lyrooMark from '../assets/images/lyroo-mark.svg';
 import {
   AppBar,
   Box,
@@ -54,6 +55,7 @@ import {
   OpenInNew as OpenInNewIcon,
   Email as EmailIcon,
   Support as SupportIcon,
+  Close as CloseIcon,
 } from '@mui/icons-material';
 import { useAuth, useWebSocket, useDIANMode, useNotifications, usePermissions, useSyncMonitor, useInactivityLogout } from '../hooks';
 import { toast } from 'react-toastify';
@@ -76,6 +78,18 @@ interface ModuleVisibility {
 }
 
 const drawerWidth = 240;
+
+// Compact relative time for notification timestamps ("ahora", "hace 5 min").
+function timeAgo(date: Date): string {
+  const secs = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
+  if (secs < 45) return 'ahora';
+  const mins = Math.floor(secs / 60);
+  if (mins < 60) return `hace ${mins} min`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `hace ${hrs} h`;
+  const days = Math.floor(hrs / 24);
+  return `hace ${days} d`;
+}
 
 interface MenuItem {
   text: string;
@@ -209,6 +223,17 @@ const menuItems: MenuItem[] = [
   },
 ];
 
+// Nav is grouped into meaningful sections instead of one flat list. Items are
+// matched by path so `menuItems` above stays the single source of truth (the
+// AppBar title lookup still uses it). A section header only renders when at
+// least one of its items is visible for the current user/plan/modules.
+const NAV_SECTIONS: { label: string; paths: string[] }[] = [
+  { label: 'Operación', paths: ['/dashboard', '/pos', '/orders', '/tables', '/sales'] },
+  { label: 'Catálogo', paths: ['/products', '/inventory', '/ingredients', '/combos'] },
+  { label: 'Gestión', paths: ['/customers', '/employees', '/permissions', '/reports', '/profit-report', '/accounting'] },
+  { label: 'Sistema', paths: ['/settings'] },
+];
+
 const MainLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -219,7 +244,7 @@ const MainLayout: React.FC = () => {
   const syncStatus = useSyncMonitor();
   const { isConnected } = useWebSocket();
   const { isDIANMode, toggleDIANMode, isElectronicInvoicingEnabled, dianApiUrl, dianConfig } = useDIANMode();
-  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
+  const { notifications, unreadCount, markAsRead, markAllAsRead, clearNotification } = useNotifications();
 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -254,18 +279,7 @@ const MainLayout: React.FC = () => {
   useEffect(() => {
     const loadModuleVisibility = async () => {
       try {
-        console.log('\n📥 [MainLayout] Cargando visibilidad de módulos desde backend...');
         const config = await wailsConfigService.getRestaurantConfig();
-        console.log('   📋 Config recibida del backend:', {
-          inventory: config?.enable_inventory_module,
-          ingredients: config?.enable_ingredients_module,
-          combos: config?.enable_combos_module,
-          customers: config?.enable_customers_module,
-          reports: config?.enable_reports_module,
-          profit: config?.enable_profit_module,
-          accounting: config?.enable_accounting_module,
-          discounts: config?.enable_discounts_module,
-        });
         if (config) {
           const newVisibility = {
             enable_inventory_module: config.enable_inventory_module ?? true,
@@ -277,7 +291,6 @@ const MainLayout: React.FC = () => {
             enable_accounting_module: config.enable_accounting_module ?? false,
             enable_discounts_module: config.enable_discounts_module ?? true,
           };
-          console.log('   ✅ Actualizando visibilidad local:', newVisibility);
           setModuleVisibility(newVisibility);
         }
       } catch (error) {
@@ -288,7 +301,6 @@ const MainLayout: React.FC = () => {
 
     // Listen for module config changes
     const handleModuleConfigChange = () => {
-      console.log('📢 [MainLayout] Evento "moduleConfigChanged" recibido, recargando...');
       loadModuleVisibility();
     };
     window.addEventListener('moduleConfigChanged', handleModuleConfigChange);
@@ -384,6 +396,15 @@ const MainLayout: React.FC = () => {
     return item.roles.includes(user.role);
   };
 
+  // Mirrors the guards inside renderMenuItem so section headers can decide
+  // whether they have any visible children before rendering.
+  const isItemVisible = (item: MenuItem): boolean => {
+    if (!hasPermission(item)) return false;
+    if (item.moduleKey && !moduleVisibility[item.moduleKey]) return false;
+    if (item.licenseFeature && Object.keys(licenseModules).length > 0 && !licenseModules[item.licenseFeature]) return false;
+    return true;
+  };
+
   const renderMenuItem = (item: MenuItem, level: number = 0) => {
     if (!hasPermission(item)) return null;
 
@@ -417,14 +438,35 @@ const MainLayout: React.FC = () => {
             selected={isSelected}
             disabled={isDisabled}
             sx={{
-              minHeight: 48,
+              position: 'relative',
+              minHeight: 46,
+              mx: 1,
+              mb: 0.25,
+              borderRadius: 2,
               justifyContent: 'initial',
-              px: level === 0 ? 2.5 : 4,
-              backgroundColor: isSelected ? 'action.selected' : 'transparent',
+              px: level === 0 ? 1.5 : 3,
+              backgroundColor: isSelected ? (t) => `${t.palette.primary.main}14` : 'transparent',
               opacity: isDisabled ? 0.5 : 1,
               cursor: isDisabled ? 'not-allowed' : 'pointer',
+              // Brand left-accent bar marks the active route.
+              '&::before': isSelected ? {
+                content: '""',
+                position: 'absolute',
+                left: 0,
+                top: 8,
+                bottom: 8,
+                width: 3,
+                borderRadius: 3,
+                backgroundColor: 'primary.main',
+              } : {},
               '&:hover': {
                 backgroundColor: isDisabled ? 'transparent' : 'action.hover',
+              },
+              '&.Mui-selected': {
+                backgroundColor: (t) => `${t.palette.primary.main}14`,
+              },
+              '&.Mui-selected:hover': {
+                backgroundColor: (t) => `${t.palette.primary.main}1F`,
               },
               '&.Mui-disabled': {
                 opacity: 0.5,
@@ -471,33 +513,48 @@ const MainLayout: React.FC = () => {
 
   const drawer = (
     <div>
-      <Toolbar>
-        <Typography variant="h6" noWrap component="div" sx={{ fontWeight: 'bold' }}>
-          Restaurant POS
-        </Typography>
-      </Toolbar>
-      <Divider />
-
-      {/* User Info */}
-      <Box sx={{ p: 2 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
-            {user?.name.charAt(0).toUpperCase()}
-          </Avatar>
-          <Box>
-            <Typography variant="subtitle2">{user?.name}</Typography>
-            <Typography variant="caption" color="text.secondary">
-              {user?.role}
-            </Typography>
-          </Box>
+      {/* User Info at the top (brand lives in the header now) */}
+      <Box sx={{ px: 2, display: 'flex', alignItems: 'center', gap: 1.5, minHeight: 64 }}>
+        <Avatar sx={{ width: 40, height: 40, bgcolor: 'primary.main', fontWeight: 700 }}>
+          {user?.name.charAt(0).toUpperCase()}
+        </Avatar>
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="subtitle2" noWrap sx={{ fontWeight: 700 }}>{user?.name}</Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'capitalize' }}>
+            {user?.role}
+          </Typography>
         </Box>
       </Box>
 
       <Divider />
 
-      {/* Menu Items */}
-      <List>
-        {menuItems.map(item => renderMenuItem(item))}
+      {/* Menu Items — grouped into sections */}
+      <List sx={{ px: 0 }}>
+        {NAV_SECTIONS.map((section) => {
+          const items = menuItems.filter(mi => section.paths.includes(mi.path));
+          const anyVisible = items.some(isItemVisible);
+          if (!anyVisible) return null;
+          return (
+            <Box key={section.label} sx={{ mt: 1 }}>
+              <Typography
+                variant="caption"
+                sx={{
+                  display: 'block',
+                  px: 2.5,
+                  py: 0.5,
+                  fontSize: '0.68rem',
+                  fontWeight: 700,
+                  letterSpacing: '0.1em',
+                  textTransform: 'uppercase',
+                  color: 'text.disabled',
+                }}
+              >
+                {section.label}
+              </Typography>
+              {items.map(item => renderMenuItem(item))}
+            </Box>
+          );
+        })}
       </List>
 
       <Divider />
@@ -505,9 +562,22 @@ const MainLayout: React.FC = () => {
       {/* Status */}
       <Box sx={{ p: 2 }}>
         {!cashRegisterId && (
-          <Box sx={{ mb: 2, p: 1.5, bgcolor: 'error.light', borderRadius: 1 }}>
-            <Typography variant="caption" sx={{ color: 'error.contrastText', fontWeight: 'bold' }}>
-              ⚠️ Debe abrir la caja para operar
+          <Box
+            sx={{
+              mb: 2,
+              p: 1.5,
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: 1,
+              borderRadius: 2,
+              bgcolor: (t) => `${t.palette.error.main}14`,
+              border: '1px solid',
+              borderColor: (t) => `${t.palette.error.main}40`,
+            }}
+          >
+            <WarningIcon sx={{ fontSize: 18, color: 'error.main', mt: '1px' }} />
+            <Typography variant="caption" sx={{ color: 'error.main', fontWeight: 600, lineHeight: 1.4 }}>
+              Debe abrir la caja para operar
             </Typography>
           </Box>
         )}
@@ -601,8 +671,23 @@ const MainLayout: React.FC = () => {
             <MenuIcon />
           </IconButton>
 
-          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
-            {menuItems.find(item => item.path === location.pathname)?.text || 'Restaurant POS'}
+          {/* Brand in the header (moved here from the sidebar to avoid a
+              double "logo + user" stack in the drawer). The AppBar is violet,
+              so the mark renders white. */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Box component="img" src={lyrooMark} alt="Lyroo" sx={{ height: 24, filter: 'brightness(0) invert(1)' }} />
+            <Typography variant="h6" noWrap component="div" sx={{ fontWeight: 800, letterSpacing: '-0.02em' }}>
+              lyroo<Box component="span" sx={{ opacity: 0.85 }}>POS</Box>
+            </Typography>
+            <Chip
+              label="DEMO"
+              size="small"
+              sx={{ ml: 0.5, height: 18, fontSize: '0.6rem', fontWeight: 700, bgcolor: 'rgba(255,255,255,0.2)', color: '#fff', '& .MuiChip-label': { px: 0.75 } }}
+            />
+          </Box>
+          <Divider orientation="vertical" flexItem sx={{ mx: 2, my: 1.5, borderColor: 'rgba(255,255,255,0.3)', display: { xs: 'none', sm: 'block' } }} />
+          <Typography variant="subtitle1" noWrap component="div" sx={{ flexGrow: 1, fontWeight: 500, opacity: 0.95 }}>
+            {menuItems.find(item => item.path === location.pathname)?.text || ''}
           </Typography>
 
           {/* Electronic Invoicing Panel - Only visible if DIAN is enabled */}
@@ -677,22 +762,28 @@ const MainLayout: React.FC = () => {
           )}
 
           {/* Notifications */}
-          <IconButton
-            color="inherit"
-            onClick={handleNotificationClick}
-          >
-            <Badge badgeContent={unreadCount} color="error">
-              <NotificationsIcon />
-            </Badge>
-          </IconButton>
+          <Tooltip title="Notificaciones">
+            <IconButton
+              color="inherit"
+              onClick={handleNotificationClick}
+              aria-label={`Notificaciones${unreadCount ? `, ${unreadCount} sin leer` : ''}`}
+            >
+              <Badge badgeContent={unreadCount} color="error">
+                <NotificationsIcon />
+              </Badge>
+            </IconButton>
+          </Tooltip>
 
           {/* User Menu */}
-          <IconButton
-            onClick={handleMenuClick}
-            color="inherit"
-          >
-            <AccountCircle />
-          </IconButton>
+          <Tooltip title="Cuenta">
+            <IconButton
+              onClick={handleMenuClick}
+              color="inherit"
+              aria-label="Menú de cuenta"
+            >
+              <AccountCircle />
+            </IconButton>
+          </Tooltip>
         </Toolbar>
       </AppBar>
 
@@ -761,24 +852,49 @@ const MainLayout: React.FC = () => {
                   bgcolor: notification.read ? 'transparent' : 'action.hover',
                   whiteSpace: 'normal',
                   py: 1.5,
+                  alignItems: 'flex-start',
+                  // Unread items get a brand accent bar on the left.
+                  borderLeft: '3px solid',
+                  borderColor: notification.read ? 'transparent' : 'primary.main',
                 }}
               >
-                <ListItemIcon sx={{ minWidth: 36 }}>
+                <ListItemIcon sx={{ minWidth: 36, mt: 0.25 }}>
                   {getNotificationIcon(notification.type)}
                 </ListItemIcon>
-                <Box sx={{ flex: 1 }}>
-                  <Typography variant="subtitle2" sx={{ fontWeight: notification.read ? 400 : 600 }}>
-                    {notification.title}
-                  </Typography>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 1 }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: notification.read ? 500 : 700 }}>
+                      {notification.title}
+                    </Typography>
+                    <Typography variant="caption" color="text.disabled" sx={{ flexShrink: 0, fontSize: '0.68rem' }}>
+                      {timeAgo(notification.timestamp)}
+                    </Typography>
+                  </Box>
                   <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>
                     {notification.message}
                   </Typography>
                   {notification.action && (
-                    <Typography variant="caption" color="primary">
-                      {notification.action.label}
+                    <Typography variant="caption" color="primary" sx={{ fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 0.25, mt: 0.25 }}>
+                      {notification.action.label} →
                     </Typography>
                   )}
                 </Box>
+                {/* Dismiss — only for non-persistent notifications. */}
+                {!(notification as any).persistent && (
+                  <Tooltip title="Descartar">
+                    <IconButton
+                      size="small"
+                      aria-label="Descartar notificación"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        clearNotification(notification.id);
+                      }}
+                      sx={{ ml: 0.5, mt: -0.25 }}
+                    >
+                      <CloseIcon sx={{ fontSize: 16 }} />
+                    </IconButton>
+                  </Tooltip>
+                )}
               </MenuItem>
             ))}
           </>

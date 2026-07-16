@@ -56,6 +56,7 @@ import { useNavigate } from 'react-router-dom';
 import { wailsOrderService } from '../../services/wailsOrderService';
 import { Table, TableArea } from '../../types/models';
 import { toast } from 'react-toastify';
+import { useConfirm } from '../../contexts/ConfirmContext';
 
 // --- Grid Layout Types ---
 
@@ -163,6 +164,7 @@ const SIDEBAR_WIDTH = 300;
 
 const Tables: React.FC = () => {
   const navigate = useNavigate();
+  const confirm = useConfirm();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const isTablet = useMediaQuery(theme.breakpoints.between('sm', 'md'));
@@ -365,7 +367,7 @@ const Tables: React.FC = () => {
   };
 
   const handleDeleteTable = async (id: number) => {
-    if (window.confirm('Esta seguro de eliminar esta mesa?')) {
+    if (await confirm({ message: 'Esta seguro de eliminar esta mesa?', variant: 'danger' })) {
       try {
         await wailsOrderService.deleteTable(id);
         toast.success('Mesa eliminada');
@@ -438,7 +440,7 @@ const Tables: React.FC = () => {
       toast.error(`No se puede eliminar el area porque tiene ${tablesInArea.length} mesa(s) asignadas`);
       return;
     }
-    if (window.confirm('Esta seguro de eliminar esta area?')) {
+    if (await confirm({ message: 'Esta seguro de eliminar esta area?', variant: 'danger' })) {
       try {
         await wailsOrderService.deleteTableArea(id);
         toast.success('Area eliminada');
@@ -725,7 +727,7 @@ const Tables: React.FC = () => {
                 backgroundColor: 'rgba(255,255,255,0.9)',
                 width: 22,
                 height: 22,
-                '&:hover': { backgroundColor: '#ffebee' },
+                '&:hover': { backgroundColor: (t) => `${t.palette.error.main}14` },
               }}
               onClick={(e) => {
                 e.stopPropagation();
@@ -746,7 +748,7 @@ const Tables: React.FC = () => {
                 backgroundColor: 'rgba(255,255,255,0.9)',
                 width: 20,
                 height: 20,
-                '&:hover': { backgroundColor: '#ffebee' },
+                '&:hover': { backgroundColor: (t) => `${t.palette.error.main}14` },
               }}
               onClick={(e) => {
                 e.stopPropagation();
@@ -830,7 +832,7 @@ const Tables: React.FC = () => {
             : '2px dashed transparent',
           borderRadius: 2,
           backgroundColor: editLayoutMode
-            ? (isOver ? '#e3f2fd' : '#fafafa')
+            ? (isOver ? 'action.selected' : 'action.hover')
             : 'transparent',
           display: 'flex',
           alignItems: 'center',
@@ -997,14 +999,15 @@ const Tables: React.FC = () => {
           width: SIDEBAR_WIDTH,
           display: { xs: 'none', md: 'flex' },
           flexDirection: 'column',
-          borderLeft: '1px solid #e0e0e0',
+          borderLeft: '1px solid',
+          borderColor: 'divider',
           overflow: 'auto',
           flexShrink: 0,
         }}
         elevation={0}
       >
         {/* Header */}
-        <Box sx={{ p: 2, borderBottom: '1px solid #e0e0e0' }}>
+        <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
           <Typography variant="h6" gutterBottom>Gestion de Mesas</Typography>
 
           {/* Edit Mode Toggle */}
@@ -1029,7 +1032,7 @@ const Tables: React.FC = () => {
         </Box>
 
         {/* Area Selector */}
-        <Box sx={{ p: 2, borderBottom: '1px solid #e0e0e0' }}>
+        <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
             <Typography variant="subtitle2">Area</Typography>
             <IconButton size="small" onClick={() => setAreaManageDialog(true)}>
@@ -1070,7 +1073,7 @@ const Tables: React.FC = () => {
         </Box>
 
         {/* Stats */}
-        <Box sx={{ p: 2, borderBottom: '1px solid #e0e0e0' }}>
+        <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
           <Typography variant="subtitle2" gutterBottom>Resumen</Typography>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -1101,7 +1104,7 @@ const Tables: React.FC = () => {
         </Box>
 
         {/* Grid Layout Options */}
-        <Box sx={{ p: 2, borderBottom: '1px solid #e0e0e0' }}>
+        <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
           <Typography variant="subtitle2" gutterBottom>Layout de Cuadricula</Typography>
           <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
             {gridLayout.rows} filas x {gridLayout.columns} columnas
@@ -1131,7 +1134,7 @@ const Tables: React.FC = () => {
 
         {/* Actions */}
         {editMode && (
-          <Box sx={{ p: 2, borderBottom: '1px solid #e0e0e0' }}>
+          <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
             <Typography variant="subtitle2" gutterBottom>Acciones</Typography>
             <Button
               fullWidth
@@ -1151,7 +1154,7 @@ const Tables: React.FC = () => {
         )}
 
         {/* Legend */}
-        <Box sx={{ p: 2, mt: 'auto', borderTop: '1px solid #e0e0e0' }}>
+        <Box sx={{ p: 2, mt: 'auto', borderTop: '1px solid', borderColor: 'divider' }}>
           <Typography variant="subtitle2" gutterBottom>Leyenda</Typography>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
             {['available', 'occupied', 'reserved', 'cleaning', 'blocked'].map(status => {
@@ -1329,7 +1332,7 @@ const Tables: React.FC = () => {
                   sx={{
                     borderLeft: `4px solid ${area.color}`,
                     mb: 1,
-                    backgroundColor: '#f9f9f9',
+                    backgroundColor: 'action.hover',
                     borderRadius: 1,
                   }}
                 >

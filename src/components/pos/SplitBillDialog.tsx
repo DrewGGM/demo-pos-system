@@ -30,6 +30,7 @@ import {
   Save as SaveIcon,
 } from '@mui/icons-material';
 import { OrderItem } from '../../types/models';
+import { toast } from 'react-toastify';
 
 export interface UnallocatedItem {
   itemId: number;
@@ -203,7 +204,7 @@ const SplitBillDialog: React.FC<SplitBillDialogProps> = ({
   const handleProcessSplit = () => {
     const unallocated = getUnallocatedItems();
     if (unallocated.length > 0) {
-      alert('Debe asignar todos los productos a una cuenta antes de proceder con pagos.');
+      toast.warning('Debe asignar todos los productos a una cuenta antes de proceder con pagos.');
       return;
     }
 
@@ -214,7 +215,7 @@ const SplitBillDialog: React.FC<SplitBillDialogProps> = ({
     const validSplits = splits.filter(split => split.items.length > 0);
 
     if (validSplits.length === 0) {
-      alert('Debe asignar al menos un producto a una cuenta para guardar la división.');
+      toast.warning('Debe asignar al menos un producto a una cuenta para guardar la división.');
       return;
     }
 

@@ -46,11 +46,14 @@ import { wailsOrderService } from '../../services/wailsOrderService';
 import { wailsPrinterService } from '../../services/wailsPrinterService';
 import { Order } from '../../types/models';
 import { showSuccess, showError, showInfo } from '../../utils/toastUtils';
+import { useConfirm } from '../../contexts/ConfirmContext';
+import PageHeader from '../../components/PageHeader';
 import { getStatusChipColor } from '../../utils/statusUtils';
 import { format } from 'date-fns';
 
 const Orders: React.FC = () => {
   const navigate = useNavigate();
+  const confirm = useConfirm();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -209,7 +212,7 @@ const Orders: React.FC = () => {
   };
 
   const handleDeleteOrder = async (order: Order) => {
-    if (!window.confirm(`¿Estás seguro de eliminar la orden #${order.order_number}? Esta acción no se puede deshacer.`)) {
+    if (!(await confirm({ message: `¿Estás seguro de eliminar la orden #${order.order_number}? Esta acción no se puede deshacer.`, variant: 'danger' }))) {
       handleMenuClose();
       return;
     }
@@ -422,16 +425,20 @@ const Orders: React.FC = () => {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
-        <Typography variant="h4">Órdenes</Typography>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => navigate('/pos')}
-        >
-          Nueva Orden
-        </Button>
-      </Box>
+      <PageHeader
+        title="Órdenes"
+        subtitle="Gestiona las órdenes activas e históricas"
+        icon={<ReceiptIcon />}
+        actions={
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => navigate('/pos')}
+          >
+            Nueva Orden
+          </Button>
+        }
+      />
 
       <Paper sx={{ p: 2, mb: 3 }}>
         <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>

@@ -29,6 +29,7 @@ import {
 import {
   Search as SearchIcon,
   Person as PersonIcon,
+  Receipt as ReceiptIcon,
   TableChart as TableIcon,
   Restaurant as RestaurantIcon,
   LocalOffer as DiscountIcon,
@@ -43,6 +44,7 @@ import {
 import { toast } from 'react-toastify';
 
 import { useAuth, useWebSocket, useDIANMode, usePermissions } from '../../hooks';
+import { useConfirm } from '../../contexts/ConfirmContext';
 import { wailsProductService } from '../../services/wailsProductService';
 import { wailsCustomPageService } from '../../services/wailsCustomPageService';
 import { wailsOrderService, CreateOrderData } from '../../services/wailsOrderService';
@@ -68,6 +70,7 @@ import { Combo } from '../../types/models';
 
 const POS: React.FC = () => {
   const { user, cashRegisterId } = useAuth();
+  const confirm = useConfirm();
   const { sendMessage, subscribe } = useWebSocket();
   const { can: canPerm, numberValue: permValue } = usePermissions();
   const canApplyDiscount = canPerm('pos.discount.apply');
@@ -1184,29 +1187,48 @@ const POS: React.FC = () => {
           sx={{
             mb: 2,
             flexShrink: 0,
-            minHeight: 72,
-            maxHeight: 72,
-            '& .MuiTabs-flexContainer': { flexWrap: 'nowrap' },
+            minHeight: 52,
+            '& .MuiTabs-indicator': { display: 'none' },
+            '& .MuiTabs-flexContainer': { flexWrap: 'nowrap', gap: 1 },
+            // Each tab is a pill/chip; a leading color dot identifies the
+            // category instead of a repeated generic icon.
+            '& .MuiTab-root': {
+              minHeight: 44,
+              borderRadius: 999,
+              border: '1px solid',
+              borderColor: 'divider',
+              px: 2,
+              py: 0.5,
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              textTransform: 'none',
+              transition: 'background-color .15s ease, border-color .15s ease, color .15s ease',
+            },
           }}
         >
           <Tab
             value="all"
             label="Todos"
-            icon={<FastfoodIcon />}
+            iconPosition="start"
+            icon={<Box sx={{ width: 9, height: 9, borderRadius: '50%', bgcolor: 'primary.main', mr: 0.25 }} />}
+            sx={{
+              backgroundColor: (!showCombosTab && selectedCustomPage === null && selectedCategory === null) ? 'primary.main' : 'transparent',
+              color: (!showCombosTab && selectedCustomPage === null && selectedCategory === null) ? 'primary.contrastText' : 'text.primary',
+              '&.Mui-selected': { color: 'primary.contrastText' },
+            }}
           />
           {combos.length > 0 && (
             <Tab
               value="combos"
               label={`Combos (${combos.length})`}
-              icon={<FastfoodIcon />}
+              iconPosition="start"
+              icon={<Box sx={{ width: 9, height: 9, borderRadius: '50%', bgcolor: showCombosTab ? 'rgba(255,255,255,0.9)' : '#FF9800', mr: 0.25 }} />}
               sx={{
                 backgroundColor: showCombosTab ? '#FF9800' : 'transparent',
-                color: showCombosTab ? '#fff' : 'inherit',
-                '&:hover': {
-                  backgroundColor: '#FF9800',
-                  opacity: 0.8,
-                  color: '#fff',
-                },
+                borderColor: showCombosTab ? '#FF9800' : 'divider',
+                color: showCombosTab ? '#fff' : 'text.primary',
+                '&.Mui-selected': { color: '#fff' },
+                '&:hover': { borderColor: '#FF9800' },
               }}
             />
           )}
@@ -1215,15 +1237,14 @@ const POS: React.FC = () => {
               key={`page-${page.id}`}
               value={`page-${page.id}`}
               label={page.name}
-              icon={<FastfoodIcon />}
+              iconPosition="start"
+              icon={<Box sx={{ width: 9, height: 9, borderRadius: '50%', bgcolor: selectedCustomPage === page.id ? 'rgba(255,255,255,0.9)' : (page.color || 'text.disabled'), mr: 0.25 }} />}
               sx={{
                 backgroundColor: selectedCustomPage === page.id ? page.color : 'transparent',
-                color: selectedCustomPage === page.id ? '#fff' : 'inherit',
-                '&:hover': {
-                  backgroundColor: page.color,
-                  opacity: 0.8,
-                  color: '#fff',
-                },
+                borderColor: selectedCustomPage === page.id ? page.color : 'divider',
+                color: selectedCustomPage === page.id ? '#fff' : 'text.primary',
+                '&.Mui-selected': { color: '#fff' },
+                '&:hover': { borderColor: page.color },
               }}
             />
           ))}
@@ -1232,15 +1253,14 @@ const POS: React.FC = () => {
               key={`cat-${category.id}`}
               value={`cat-${category.id}`}
               label={category.name}
-              icon={<FastfoodIcon />}
+              iconPosition="start"
+              icon={<Box sx={{ width: 9, height: 9, borderRadius: '50%', bgcolor: selectedCategory === category.id ? 'rgba(255,255,255,0.9)' : (category.color || 'text.disabled'), mr: 0.25 }} />}
               sx={{
                 backgroundColor: selectedCategory === category.id ? category.color : 'transparent',
-                color: selectedCategory === category.id ? '#fff' : 'inherit',
-                '&:hover': {
-                  backgroundColor: category.color,
-                  opacity: 0.8,
-                  color: '#fff',
-                },
+                borderColor: selectedCategory === category.id ? category.color : 'divider',
+                color: selectedCategory === category.id ? '#fff' : 'text.primary',
+                '&.Mui-selected': { color: '#fff' },
+                '&:hover': { borderColor: category.color },
               }}
             />
           ))}
@@ -1273,7 +1293,7 @@ const POS: React.FC = () => {
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            backgroundColor: '#FFF3E0',
+                            bgcolor: (t) => `${t.palette.warning.main}1F`,
                           }}
                         >
                           <FastfoodIcon sx={{ fontSize: 48, color: '#FF9800' }} />
@@ -1324,34 +1344,65 @@ const POS: React.FC = () => {
                     sx={{
                       height: '100%',
                       // Only show red border/glow for products with inventory tracking enabled
-                      border: product.track_inventory !== false && product.stock <= 0 ? '3px solid #d32f2f' : 'none',
-                      boxShadow: product.track_inventory !== false && product.stock <= 0 ? '0 0 10px rgba(211, 47, 47, 0.5)' : undefined,
+                      borderColor: product.track_inventory !== false && product.stock <= 0 ? 'error.main' : 'divider',
+                      borderWidth: product.track_inventory !== false && product.stock <= 0 ? 2 : 1,
+                      boxShadow: product.track_inventory !== false && product.stock <= 0 ? (t) => `0 0 0 3px ${t.palette.error.main}22` : undefined,
+                      transition: 'border-color .15s ease, box-shadow .15s ease, transform .08s ease',
+                      '&:hover': {
+                        borderColor: 'primary.main',
+                        boxShadow: (t) => `0 6px 18px ${t.palette.primary.main}22`,
+                      },
+                      '&:active': { transform: 'translateY(1px)' },
                     }}
                   >
                     <CardActionArea
                       onClick={() => addProductToOrder(product)}
+                      sx={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}
                     >
-                      {product.image && (
+                      {product.image ? (
                         <CardMedia
                           component="img"
                           height="120"
                           image={product.image}
                           alt={product.name}
                         />
+                      ) : (
+                        <Box
+                          sx={{
+                            height: 120,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            bgcolor: 'action.hover',
+                          }}
+                        >
+                          <FastfoodIcon sx={{ fontSize: 42, color: 'text.disabled' }} />
+                        </Box>
                       )}
-                      <CardContent sx={{ p: 1 }}>
-                        <Typography variant="body2" noWrap>
+                      <CardContent sx={{ p: 1.25, width: '100%', display: 'flex', flexDirection: 'column', flex: 1 }}>
+                        <Typography
+                          variant="body2"
+                          fontWeight={600}
+                          title={product.name}
+                          sx={{
+                            lineHeight: 1.3,
+                            wordBreak: 'break-word',
+                            minHeight: '2.6em',
+                            mb: 0.5,
+                          }}
+                        >
                           {product.name}
                         </Typography>
-                        <Typography variant="h6" color="primary">
+                        <Typography variant="h6" color="primary" fontWeight={800} sx={{ letterSpacing: '-0.01em', mt: 'auto' }}>
                           ${product.price.toLocaleString('es-CO')}
                         </Typography>
                         {/* Only show stock warning for products with inventory tracking enabled */}
                         {product.track_inventory !== false && product.stock <= 5 && (
                           <Chip
                             size="small"
-                            label={`Stock: ${product.stock}`}
+                            label={product.stock <= 0 ? 'Sin stock' : `Quedan ${product.stock}`}
                             color={product.stock <= 0 ? 'error' : 'warning'}
+                            sx={{ mt: 0.5, alignSelf: 'flex-start', height: 22, fontSize: '0.7rem' }}
                           />
                         )}
                       </CardContent>
@@ -1376,26 +1427,52 @@ const POS: React.FC = () => {
         elevation={3}
       >
         {/* Order Header */}
-        <Box sx={{ p: 2, backgroundColor: 'primary.main', color: 'white' }}>
-          <Typography variant="h6">Orden Actual</Typography>
-          <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
-            {selectedTable && (
+        <Box
+          sx={{
+            px: 2,
+            py: 1.5,
+            borderBottom: '1px solid',
+            borderColor: 'divider',
+            // Subtle brand-tinted surface (theme-safe in light & dark) with a
+            // left accent bar, instead of a solid block that loses contrast.
+            bgcolor: (t) => `${t.palette.primary.main}0A`,
+            borderLeft: '3px solid',
+            borderLeftColor: 'primary.main',
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <ReceiptIcon sx={{ fontSize: 20, color: 'primary.main' }} />
+            <Typography variant="h6" sx={{ fontWeight: 700, fontSize: '1.05rem' }}>Orden Actual</Typography>
+            {orderItems.length > 0 && (
               <Chip
-                icon={<TableIcon />}
-                label={`Mesa ${selectedTable.number}`}
-                color="secondary"
+                label={`${orderItems.reduce((n, it) => n + it.quantity, 0)} ítems`}
                 size="small"
-              />
-            )}
-            {selectedCustomer && (
-              <Chip
-                icon={<PersonIcon />}
-                label={selectedCustomer.name}
-                color="secondary"
-                size="small"
+                sx={{ ml: 'auto', height: 22, fontSize: '0.72rem', bgcolor: 'primary.main', color: 'primary.contrastText' }}
               />
             )}
           </Box>
+          {(selectedTable || selectedCustomer) && (
+            <Box sx={{ display: 'flex', gap: 0.75, mt: 1, flexWrap: 'wrap' }}>
+              {selectedTable && (
+                <Chip
+                  icon={<TableIcon />}
+                  label={`Mesa ${selectedTable.number}`}
+                  color="secondary"
+                  size="small"
+                  variant="outlined"
+                />
+              )}
+              {selectedCustomer && (
+                <Chip
+                  icon={<PersonIcon />}
+                  label={selectedCustomer.name}
+                  color="secondary"
+                  size="small"
+                  variant="outlined"
+                />
+              )}
+            </Box>
+          )}
         </Box>
 
         {/* Action Buttons */}
@@ -1503,8 +1580,8 @@ const POS: React.FC = () => {
                 <SplitIcon />
               </IconButton>
               <IconButton
-                onClick={() => {
-                  if (window.confirm('¿Vaciar el carrito? Esto eliminará todos los productos.')) {
+                onClick={async () => {
+                  if (await confirm({ title: 'Vaciar carrito', message: '¿Vaciar el carrito? Esto eliminará todos los productos.', variant: 'danger', confirmText: 'Vaciar' })) {
                     setOrderItems([]);
                     setCurrentOrder(null);
                     setSelectedTable(null);
@@ -1592,9 +1669,30 @@ const POS: React.FC = () => {
               </Typography>
             </Box>
           )}
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', mt: 0.5, mb: 1 }}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>Total:</Typography>
-            <Typography variant="subtitle1" color="primary" sx={{ fontWeight: 700 }}>
+          {/* Signature: the running total is the one number everyone watches,
+              so it's the largest, boldest element in the panel. */}
+          <Box
+            sx={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'flex-end',
+              mt: 0.75,
+              mb: 1,
+              pt: 1,
+              borderTop: '1px dashed',
+              borderColor: 'divider',
+            }}
+          >
+            <Typography
+              variant="overline"
+              sx={{ fontWeight: 700, letterSpacing: '0.12em', color: 'text.secondary', lineHeight: 2.2 }}
+            >
+              Total
+            </Typography>
+            <Typography
+              color="primary"
+              sx={{ fontWeight: 800, fontSize: '2rem', lineHeight: 1, letterSpacing: '-0.03em' }}
+            >
               ${orderTotals.total.toLocaleString('es-CO')}
             </Typography>
           </Box>
@@ -1670,17 +1768,23 @@ const POS: React.FC = () => {
               </Button>
             </Box>
 
-            {/* Payment Action (Primary) */}
+            {/* Payment Action (Primary) — the money moment. Green, tall and
+                full-width so it's unmistakable and easy to hit on a touch
+                screen. Shows the amount so the cashier confirms what they cobrar. */}
             <Button
               fullWidth
               variant="contained"
               color="success"
-              startIcon={isProcessingPayment ? <CircularProgress size={18} color="inherit" /> : <PaymentIcon />}
+              startIcon={isProcessingPayment ? <CircularProgress size={20} color="inherit" /> : <PaymentIcon />}
               onClick={handlePaymentClick}
               disabled={orderItems.length === 0 || !cashRegisterId || isSavingOrder || isProcessingPayment}
-              sx={{ py: 1 }}
+              sx={{ py: 1.5, fontSize: '1.05rem', fontWeight: 800, borderRadius: 2 }}
             >
-              {isProcessingPayment ? 'Procesando...' : 'Pagar'}
+              {isProcessingPayment
+                ? 'Procesando...'
+                : orderItems.length > 0
+                  ? `Cobrar $${orderTotals.total.toLocaleString('es-CO')}`
+                  : 'Cobrar'}
             </Button>
           </Box>
         </Box>
@@ -2144,9 +2248,9 @@ const POS: React.FC = () => {
       {billSplits.length > 0 && activeSplitIndex < billSplits.length && (
         <Dialog
           open={paymentDialogOpen && billSplits.length > 0}
-          onClose={() => {
+          onClose={async () => {
             // When closing split payment dialog, ask for confirmation
-            if (window.confirm('¿Cancelar división de cuentas? Se perderá el progreso de los pagos.')) {
+            if (await confirm({ title: 'Cancelar división', message: '¿Cancelar división de cuentas? Se perderá el progreso de los pagos.', variant: 'danger', confirmText: 'Sí, cancelar', cancelText: 'Seguir' })) {
               setPaymentDialogOpen(false);
               setBillSplits([]);
               setActiveSplitIndex(0);
@@ -2190,9 +2294,9 @@ const POS: React.FC = () => {
 
             <PaymentDialog
               open={true}
-              onClose={() => {
+              onClose={async () => {
                 // Same confirmation as outer dialog
-                if (window.confirm('¿Cancelar división de cuentas? Se perderá el progreso de los pagos.')) {
+                if (await confirm({ title: 'Cancelar división', message: '¿Cancelar división de cuentas? Se perderá el progreso de los pagos.', variant: 'danger', confirmText: 'Sí, cancelar', cancelText: 'Seguir' })) {
                   setPaymentDialogOpen(false);
                   setBillSplits([]);
                   setActiveSplitIndex(0);

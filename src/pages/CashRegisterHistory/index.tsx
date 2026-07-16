@@ -128,15 +128,19 @@ const CashRegisterHistory: React.FC = () => {
   return (
     <Container maxWidth="xl" sx={{ py: 4 }}>
       <Box sx={{ mb: 4 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-          <HistoryIcon fontSize="large" color="primary" />
-          <Typography variant="h4" component="h1">
-            Historial de Cierres de Caja
-          </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Box sx={{ width: 44, height: 44, borderRadius: 2.5, display: 'grid', placeItems: 'center', color: 'primary.main', bgcolor: (t) => `${t.palette.primary.main}18` }}>
+            <HistoryIcon />
+          </Box>
+          <Box>
+            <Typography variant="h4" component="h1" sx={{ lineHeight: 1.1 }}>
+              Historial de Cierres de Caja
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Registro completo de todos los cierres realizados
+            </Typography>
+          </Box>
         </Box>
-        <Typography variant="body1" color="text.secondary">
-          Registro completo de todos los cierres de caja realizados
-        </Typography>
       </Box>
 
       {history.length === 0 ? (

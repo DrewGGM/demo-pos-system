@@ -340,8 +340,16 @@ const Reports: React.FC = () => {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
-        <Typography variant="h4">Reportes y Análisis</Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2, mb: 3 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Box sx={{ width: 44, height: 44, borderRadius: 2.5, display: 'grid', placeItems: 'center', color: 'primary.main', bgcolor: (t) => `${t.palette.primary.main}18` }}>
+            <AssessmentIcon />
+          </Box>
+          <Box>
+            <Typography variant="h4" sx={{ lineHeight: 1.1 }}>Reportes y Análisis</Typography>
+            <Typography variant="body2" color="text.secondary">Ventas, productos y desempeño del negocio</Typography>
+          </Box>
+        </Box>
         <Box sx={{ display: 'flex', gap: 2 }}>
           <Button
             variant="outlined"

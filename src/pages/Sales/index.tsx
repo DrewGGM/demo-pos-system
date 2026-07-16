@@ -68,10 +68,13 @@ import { wailsSalesService } from '../../services/wailsSalesService';
 import { wailsDianService } from '../../services/wailsDianService';
 import { useAuth, useDIANMode } from '../../hooks';
 import { toast } from 'react-toastify';
+import { useConfirm } from '../../contexts/ConfirmContext';
+import PageHeader from '../../components/PageHeader';
 import { GetRestaurantConfig } from '../../../wailsjs/go/services/ConfigService';
 
 const Sales: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
+  const confirm = useConfirm();
   const { user } = useAuth();
   const { isDIANMode } = useDIANMode();
   const {
@@ -224,7 +227,7 @@ const Sales: React.FC = () => {
   };
 
   const handleDeleteSale = async (sale: Sale) => {
-    if (!window.confirm('¿Está seguro de eliminar esta venta? Esta acción no se puede deshacer y eliminará toda la información relacionada (orden, items, pagos, factura electrónica).')) {
+    if (!(await confirm({ message: '¿Está seguro de eliminar esta venta? Esta acción no se puede deshacer y eliminará toda la información relacionada (orden, items, pagos, factura electrónica).', variant: 'danger' }))) {
       return;
     }
 
@@ -433,9 +436,11 @@ const Sales: React.FC = () => {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
-        <Typography variant="h4">Ventas</Typography>
-        <Box sx={{ display: 'flex', gap: 2 }}>
+      <PageHeader
+        title="Ventas"
+        subtitle="Historial de ventas y facturación"
+        icon={<MoneyIcon />}
+        actions={
           <Button
             variant="outlined"
             startIcon={<DownloadIcon />}
@@ -443,8 +448,8 @@ const Sales: React.FC = () => {
           >
             Exportar
           </Button>
-        </Box>
-      </Box>
+        }
+      />
 
       {/* Stats Cards */}
       <Grid container spacing={2} sx={{ mb: 3 }}>

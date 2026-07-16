@@ -48,10 +48,13 @@ import { fetchProducts, fetchCategories } from '../../store/slices/productsSlice
 import { Combo, ComboItem, Product, Category } from '../../types/models';
 import { wailsComboService } from '../../services/wailsComboService';
 import { toast } from 'react-toastify';
+import { useConfirm } from '../../contexts/ConfirmContext';
+import PageHeader from '../../components/PageHeader';
 import { compressImageToBase64, getBase64Size } from '../../utils/imageUtils';
 
 const Combos: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
+  const confirm = useConfirm();
   const { products, categories } = useSelector((state: RootState) => state.products);
 
   const [combos, setCombos] = useState<Combo[]>([]);
@@ -253,7 +256,7 @@ const Combos: React.FC = () => {
   };
 
   const handleDeleteCombo = async (id: number) => {
-    if (window.confirm('¿Está seguro de eliminar este combo?')) {
+    if (await confirm({ message: '¿Está seguro de eliminar este combo?', variant: 'danger' })) {
       try {
         await wailsComboService.deleteCombo(id);
         toast.success('Combo eliminado');
@@ -291,9 +294,11 @@ const Combos: React.FC = () => {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
-        <Typography variant="h4">Combos</Typography>
-        <Box sx={{ display: 'flex', gap: 2 }}>
+      <PageHeader
+        title="Combos"
+        subtitle="Paquetes y promociones de productos"
+        icon={<FastfoodIcon />}
+        actions={<>
           <Button
             variant="outlined"
             startIcon={<RefreshIcon />}
@@ -309,8 +314,8 @@ const Combos: React.FC = () => {
           >
             Nuevo Combo
           </Button>
-        </Box>
-      </Box>
+        </>}
+      />
 
       <Paper sx={{ p: 2, mb: 3 }}>
         <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
@@ -384,7 +389,7 @@ const Combos: React.FC = () => {
                     alt={combo.name}
                     sx={{
                       objectFit: 'cover',
-                      backgroundColor: '#f5f5f5',
+                      backgroundColor: 'action.hover',
                     }}
                   />
                 ) : (
@@ -394,8 +399,8 @@ const Combos: React.FC = () => {
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      backgroundColor: '#f5f5f5',
-                      color: '#9e9e9e',
+                      backgroundColor: 'action.hover',
+                      color: 'text.disabled',
                     }}
                   >
                     <FastfoodIcon sx={{ fontSize: 64 }} />
@@ -572,7 +577,7 @@ const Combos: React.FC = () => {
                       alt="Preview"
                       sx={{
                         borderRadius: 2,
-                        border: '2px solid #e0e0e0',
+                        border: '2px dashed', borderColor: 'divider',
                         maxHeight: 200,
                         objectFit: 'contain',
                       }}

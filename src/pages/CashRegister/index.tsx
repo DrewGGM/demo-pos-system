@@ -38,6 +38,7 @@ import {
   Description as DIANReportIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
+  PointOfSale as CashIcon,
 } from '@mui/icons-material';
 import { format, startOfWeek, endOfWeek } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -47,6 +48,7 @@ import { wailsAuthService } from '../../services/wailsAuthService';
 import { wailsSalesService, DIANClosingReport } from '../../services/wailsSalesService';
 import { wailsConfigService } from '../../services/wailsConfigService';
 import { toast } from 'react-toastify';
+import { useConfirm } from '../../contexts/ConfirmContext';
 import PreCloseChecksDialog from '../../components/cash/PreCloseChecksDialog';
 
 interface CashRegisterStatus {
@@ -89,6 +91,7 @@ const CashRegister: React.FC = () => {
   const { user, cashRegisterId, openCashRegister: openCashRegisterContext, closeCashRegister: closeCashRegisterContext } = useAuth();
   const { isDIANMode } = useDIANMode();
   const navigate = useNavigate();
+  const confirm = useConfirm();
   const [registerStatus, setRegisterStatus] = useState<CashRegisterStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
@@ -329,7 +332,7 @@ const CashRegister: React.FC = () => {
   };
 
   const handleDeleteMovement = async (movement: CashMovement) => {
-    if (!window.confirm(`¿Está seguro de eliminar este movimiento?\n\nTipo: ${movement.type === 'in' ? 'Entrada' : 'Salida'}\nMonto: $${movement.amount.toLocaleString('es-CO')}\nRazón: ${movement.reason || movement.description}`)) {
+    if (!(await confirm({ message: `¿Está seguro de eliminar este movimiento?\n\nTipo: ${movement.type === 'in' ? 'Entrada' : 'Salida'}\nMonto: $${movement.amount.toLocaleString('es-CO')}\nRazón: ${movement.reason || movement.description}`, variant: 'danger' }))) {
       return;
     }
 
@@ -487,8 +490,16 @@ const CashRegister: React.FC = () => {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
-        <Typography variant="h4">Control de Caja</Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2, mb: 3 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Box sx={{ width: 44, height: 44, borderRadius: 2.5, display: 'grid', placeItems: 'center', color: 'primary.main', bgcolor: (t) => `${t.palette.primary.main}18` }}>
+            <CashIcon />
+          </Box>
+          <Box>
+            <Typography variant="h4" sx={{ lineHeight: 1.1 }}>Control de Caja</Typography>
+            <Typography variant="body2" color="text.secondary">Apertura, movimientos y cierre de caja</Typography>
+          </Box>
+        </Box>
         <Box sx={{ display: 'flex', gap: 2 }}>
           {isRegisterOpen && (
             <>
@@ -563,7 +574,7 @@ const CashRegister: React.FC = () => {
       {!loading && registerStatus && (
         <>
           {/* Status Card */}
-          <Card sx={{ mb: 3, backgroundColor: isRegisterOpen ? '#e8f5e9' : '#ffebee' }}>
+          <Card sx={{ mb: 3, bgcolor: (t) => isRegisterOpen ? `${t.palette.success.main}14` : `${t.palette.error.main}14` }}>
             <CardContent>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
                 <Box>

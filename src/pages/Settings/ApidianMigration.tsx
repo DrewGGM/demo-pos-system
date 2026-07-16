@@ -39,6 +39,7 @@ import {
   BackfillResult,
 } from '../../services/wailsApidianMigrationService';
 import { openFileDialog, isOpenFileDialogAvailable } from '../../lib/nativeDialog';
+import { useConfirm } from '../../contexts/ConfirmContext';
 
 // ApidianMigration is the wizard that walks an admin through importing a
 // MySQL dump of `apirestdian` into PosApp. Three steps:
@@ -50,6 +51,7 @@ import { openFileDialog, isOpenFileDialogAvailable } from '../../lib/nativeDialo
 // it doesn't replace the rest of the backups tab, just adds a focused
 // section the admin can collapse mentally when not migrating.
 const ApidianMigration: React.FC = () => {
+  const confirm = useConfirm();
   const [activeStep, setActiveStep] = useState(0);
   const [dumpPath, setDumpPath] = useState('');
   const [loading, setLoading] = useState(false);
@@ -107,9 +109,9 @@ const ApidianMigration: React.FC = () => {
   const handleImport = async () => {
     if (!dumpPath || !preview) return;
     if (
-      !window.confirm(
-        '¿Aplicar la migración?\n\nEsto puede modificar dian_configs y crear filas en electronic_invoices/credit_notes/debit_notes. Se recomienda hacer un backup ANTES desde la pestaña Backups.',
-      )
+      !(await confirm({
+        message: '¿Aplicar la migración?\n\nEsto puede modificar dian_configs y crear filas en electronic_invoices/credit_notes/debit_notes. Se recomienda hacer un backup ANTES desde la pestaña Backups.',
+      }))
     ) {
       return;
     }
@@ -169,9 +171,9 @@ const ApidianMigration: React.FC = () => {
       return;
     }
     if (
-      !window.confirm(
-        '¿Backfill desde storage?\n\nSe leerán los archivos XML/PDF de la carpeta y se asignarán a las facturas correspondientes en la BD local.',
-      )
+      !(await confirm({
+        message: '¿Backfill desde storage?\n\nSe leerán los archivos XML/PDF de la carpeta y se asignarán a las facturas correspondientes en la BD local.',
+      }))
     ) {
       return;
     }
